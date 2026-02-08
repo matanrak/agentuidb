@@ -14,7 +14,9 @@
     "test": "node scripts/test.mjs",
     "chat": "node scripts/chat.mjs",
     "watch": "node scripts/watch.mjs",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "db": "bash scripts/start-db.sh",
+    "db:load": "bash scripts/load-seed-data.sh"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.26",

@@ -22,7 +22,10 @@ export function registerInsertDocument(server: McpServer): void {
           };
         }
 
-        // Remove created_at from data — server always sets it
+        // Use provided created_at if valid, otherwise auto-set
+        const providedCreatedAt = typeof data.created_at === "string" && !isNaN(Date.parse(data.created_at))
+          ? data.created_at
+          : null;
         const { created_at: _, ...userData } = data;
 
         const validation = validateDocument(meta.fields, userData, "insert");
@@ -34,7 +37,7 @@ export function registerInsertDocument(server: McpServer): void {
         }
 
         const db = await getDb();
-        const docWithTimestamp = { ...validation.data, created_at: new Date().toISOString() };
+        const docWithTimestamp = { ...validation.data, created_at: providedCreatedAt || new Date().toISOString() };
         const [record] = await db.create(collection, docWithTimestamp);
         const id = String(record.id);
 
