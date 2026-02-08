@@ -78,7 +78,7 @@ Before making any storage decision, always call `list_collections` to see what e
 3. Call `insert_document` with the mapped data
 4. Continue responding to the user as if nothing happened
 
-**Note:** `created_at` is automatically added by the server on every insert. Do NOT include it in your data or in collection schemas.
+**Note:** `created_at` is automatically set by the server on every insert. You can override it by including a valid ISO 8601 `created_at` string in your data — useful when the user describes a past event (e.g., "I had sushi yesterday"). Do NOT include `created_at` in collection schemas.
 
 ### Field extraction rules
 
@@ -99,7 +99,7 @@ Think about what this collection will hold **over time**, not just this one entr
 
 **Schema design principles:**
 
-- **Do NOT include `created_at`** — the server adds it automatically on every insert. You never need to define it or provide it.
+- **Do NOT include `created_at` in schemas** — the server manages this field. You can optionally pass it in `insert_document` data to override the timestamp (see insert_document docs).
 - **Always include** a human-readable identifier field (title/name/description)
 - **Anticipate growth.** If user logs a meal, include fields for: `meal_name`, `calories`, `protein_g`, `carbs_g`, `fat_g`, `meal_type` (breakfast/lunch/dinner/snack), `location`, `companions`, `notes`, `photo_url`. Even if today's entry only fills 2 of these.
 - **Use specific types.** `calories: int`, not `calories: string`. `date: datetime`, not `date: string`.
@@ -185,7 +185,7 @@ Inserts a single document into a collection. Validates against schema.
 
 **Parameters:**
 - `collection` (string, required): collection name
-- `data` (object, required): key-value pairs matching the collection schema
+- `data` (object, required): key-value pairs matching the collection schema. You may include `created_at` (ISO 8601 string) to override the server timestamp — useful for past events. If omitted, the server sets it to now.
 
 **Returns:** `{ "success": true, "id": "meals:abc123" }`
 
@@ -253,7 +253,7 @@ Adds new fields to an existing collection schema. Cannot remove or rename existi
 
 - **Corrections:** "Actually that was 400 cals not 300" → call `query_collection` to find the recent entry, then `update_document`. Don't create a duplicate.
 - **Bulk data:** "Here are my weights for the week: Mon 82, Tue 81.5..." → insert each as a separate document with the correct date.
-- **Past events:** "I had sushi yesterday" → the server's `created_at` will be "now", which is fine. If the exact date matters for the data, add a field like `event_date` to the schema.
+- **Past events:** "I had sushi yesterday" → include `created_at` set to yesterday's date in your `insert_document` data so the record reflects when the event happened, not when it was stored.
 - **Duplicate detection:** Before inserting, consider if a very similar entry was just created in this session. Don't double-store.
 - **Schema evolution:** User mentions a field that doesn't exist in the schema (e.g., "that sushi was from Nobu" but `meals` has no `restaurant` field) → call `update_collection_schema` to add the field, then insert.
 

@@ -60,9 +60,30 @@ function mcpSend(method, params = {}) {
   });
 }
 
+let currentOverrideDate = null;
+
 async function mcpCallTool(name, args) {
+  // Inject created_at override for insert_document during seeding
+  if (name === "insert_document" && currentOverrideDate && args.data) {
+    const h = 8 + Math.floor(Math.random() * 12); // 8am–8pm
+    const m = Math.floor(Math.random() * 60);
+    args.data.created_at = `${currentOverrideDate}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00Z`;
+  }
   const resp = await mcpSend("tools/call", { name, arguments: args });
+  if (resp.error) return JSON.stringify({ error: resp.error });
   return resp.result?.content?.[0]?.text ?? "{}";
+}
+
+function generateDates(count, daysBack = 45) {
+  const dates = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const daysAgo = Math.floor((daysBack * (count - 1 - i)) / (count - 1));
+    const d = new Date(now);
+    d.setDate(d.getDate() - daysAgo);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+  return dates;
 }
 
 async function discoverTools() {
@@ -87,26 +108,26 @@ try {
 // --- Seed data ---
 const messages_by_category = {
   meals: [
-    "Had a chicken caesar salad for lunch, about 550 cal",
-    "Grabbed a breakfast burrito this morning — eggs, beans, cheese, salsa. Maybe 650 cal",
-    "Just had two slices of pepperoni pizza, probably 600 cal total",
-    "Made a smoothie with banana, peanut butter, oat milk, and protein powder. Around 450 cal",
-    "Had sushi for dinner — salmon roll and tuna nigiri, maybe 500 cal",
-    "Ate a bowl of oatmeal with blueberries and honey for breakfast, about 350 cal",
-    "Just had a huge pad thai from the Thai place, probably 800 cal",
-    "Had a grilled chicken sandwich with fries for lunch, around 900 cal",
-    "Made pasta with pesto and grilled vegetables for dinner, about 700 cal",
-    "Had a protein bar and a banana as a snack, maybe 350 cal",
-    "Grabbed a croissant and cappuccino for breakfast, around 400 cal total",
-    "Had a poke bowl with tuna, rice, avocado, and edamame — about 650 cal",
-    "Made a steak with roasted potatoes and asparagus, probably 750 cal",
-    "Had a Greek yogurt with granola and berries, about 300 cal",
-    "Ate a turkey club sandwich for lunch, maybe 550 cal",
-    "Had fish tacos for dinner — three of them with slaw and lime, around 600 cal",
-    "Made a big green salad with grilled shrimp and avocado dressing, about 450 cal",
-    "Had chicken tikka masala with naan for dinner, probably 850 cal",
-    "Grabbed a bagel with cream cheese and smoked salmon, around 500 cal",
-    "Had a veggie burger with sweet potato fries, about 700 cal",
+    "Had a chicken caesar salad for lunch",
+    "Grabbed a breakfast burrito this morning — eggs, beans, cheese, salsa",
+    "Just had two slices of pepperoni pizza",
+    "Made a smoothie with banana, peanut butter, oat milk, and protein powder",
+    "Had sushi for dinner — salmon roll and tuna nigiri",
+    "Ate a bowl of oatmeal with blueberries and honey for breakfast",
+    "Just had a huge pad thai from the Thai place",
+    "Had a grilled chicken sandwich with fries for lunch",
+    "Made pasta with pesto and grilled vegetables for dinner",
+    "Had a protein bar and a banana as a snack",
+    "Grabbed a croissant and cappuccino for breakfast",
+    "Had a poke bowl with tuna, rice, avocado, and edamame",
+    "Made a steak with roasted potatoes and asparagus",
+    "Had a Greek yogurt with granola and berries",
+    "Ate a turkey club sandwich for lunch",
+    "Had fish tacos for dinner — three of them with slaw and lime",
+    "Made a big green salad with grilled shrimp and avocado dressing",
+    "Had chicken tikka masala with naan for dinner",
+    "Grabbed a bagel with cream cheese and smoked salmon",
+    "Had a veggie burger with sweet potato fries",
   ],
   contacts: [
     "Met Rachel Kim at the product meetup, she's a PM at Figma",
@@ -327,7 +348,7 @@ async function main() {
         const fields = s.fields.map((f) => `    ${f.name}: ${f.type}${f.required ? " (required)" : ""}`).join("\n");
         return `- ${s.name} (${s.count} docs): ${s.description}\n${fields}`;
       }).join("\n\n");
-      systemContent += `\n\n## Existing Collections\n\n${ctx}`;
+      systemContent += `\n\n## Existing Collections\n\nThese collections already exist. Use them directly with insert_document — do NOT call list_collections or get_collection_schema unless the user asks about a collection you don't recognize.\n\n${ctx}`;
     }
     return systemContent;
   }
@@ -341,28 +362,38 @@ async function main() {
 
   for (const category of categories) {
     const msgs = messages_by_category[category];
-    console.log(`${cyan(category)} (${msgs.length} messages)`);
+    const dates = generateDates(msgs.length, 45);
+    console.log(`${cyan(category)} (${msgs.length} messages, ${dates[0]} → ${dates[dates.length - 1]})`);
 
     // Fresh conversation per category — re-load schemas so the model knows about
     // collections created in previous categories without dragging a huge context
     const systemContent = await buildSystemPrompt();
     const conversationMessages = [{ role: "system", content: systemContent }];
 
-    for (const msg of msgs) {
+    for (let i = 0; i < msgs.length; i++) {
+      const msg = msgs[i];
+      currentOverrideDate = dates[i];
       done++;
       const short = msg.length > 70 ? msg.slice(0, 70) + "..." : msg;
-      process.stdout.write(`  ${dim(`[${done}/${total}]`)} ${short} `);
+      process.stdout.write(`  ${dim(`[${done}/${total}]`)} ${dim(dates[i])} ${short} `);
 
-      const result = await sendToAgent(msg, conversationMessages);
+      const result = await sendToAgent(`${msg} on ${dates[i]}`, conversationMessages);
 
       if (result.error) {
         process.stdout.write(`${red("ERR")} ${dim(result.error)}\n`);
         errors++;
       } else {
+        const hasInsert = result.toolsCalled.some((t) => t.name === "insert_document" && t.success);
         const toolSummary = result.toolsCalled
           .map((t) => t.success ? green(t.name) : red(t.name))
           .join(", ");
-        process.stdout.write(`${toolSummary || dim("(no tools)")}\n`);
+        process.stdout.write(`${toolSummary || dim("(no tools)")}`);
+        if (!hasInsert && result.response) {
+          // Show model response when it didn't insert — helps debug
+          const respShort = result.response.length > 80 ? result.response.slice(0, 80) + "..." : result.response;
+          process.stdout.write(` ${yellow(respShort)}`);
+        }
+        process.stdout.write("\n");
       }
 
       // Small delay to avoid rate limits
