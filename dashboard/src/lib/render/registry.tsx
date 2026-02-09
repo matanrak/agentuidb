@@ -3,12 +3,17 @@
 import { getByPath } from "@json-render/core";
 import { useData, defineRegistry } from "@json-render/react";
 import {
+  Area,
   Bar,
   BarChart as RechartsBarChart,
   CartesianGrid,
+  Cell,
+  ComposedChart,
   Line,
   LineChart as RechartsLineChart,
+  ReferenceLine,
   XAxis,
+  YAxis,
 } from "recharts";
 import {
   ChartContainer,
@@ -190,6 +195,140 @@ function resolveData(data: Record<string, unknown>, dataPath: string): Array<Rec
 }
 
 // =============================================================================
+// Table Filter Helper
+// =============================================================================
+
+type FilterOp = "gt" | "lt" | "gte" | "lte" | "eq" | "neq";
+
+function applyFilters(
+  items: Array<Record<string, unknown>>,
+  filters: Array<{ key: string; operator: FilterOp; value: number | string }> | null | undefined,
+): Array<Record<string, unknown>> {
+  if (!filters || filters.length === 0) return items;
+  return items.filter((row) =>
+    filters.every((f) => {
+      const raw = row[f.key];
+      const rowVal = typeof raw === "number" ? raw : parseFloat(String(raw));
+      const filterVal = typeof f.value === "number" ? f.value : parseFloat(String(f.value));
+      if (isNaN(rowVal) || isNaN(filterVal)) {
+        // Fall back to string comparison for non-numeric values
+        const a = String(raw ?? "");
+        const b = String(f.value);
+        switch (f.operator) {
+          case "eq": return a === b;
+          case "neq": return a !== b;
+          default: return true;
+        }
+      }
+      switch (f.operator) {
+        case "gt": return rowVal > filterVal;
+        case "lt": return rowVal < filterVal;
+        case "gte": return rowVal >= filterVal;
+        case "lte": return rowVal <= filterVal;
+        case "eq": return rowVal === filterVal;
+        case "neq": return rowVal !== filterVal;
+      }
+    }),
+  );
+}
+
+// =============================================================================
+// Color Rules Helper
+// =============================================================================
+
+type ColorRule = {
+  condition: { field: string; operator: FilterOp; value: number };
+  color: string;
+};
+
+function resolveBarColor(
+  entry: Record<string, unknown>,
+  colorRules: ColorRule[] | null | undefined,
+  defaultColor: string,
+): string {
+  if (!colorRules || colorRules.length === 0) return defaultColor;
+  for (const rule of colorRules) {
+    const raw = entry[rule.condition.field];
+    const val = typeof raw === "number" ? raw : parseFloat(String(raw));
+    if (isNaN(val)) continue;
+    const target = rule.condition.value;
+    let match = false;
+    switch (rule.condition.operator) {
+      case "gt": match = val > target; break;
+      case "lt": match = val < target; break;
+      case "gte": match = val >= target; break;
+      case "lte": match = val <= target; break;
+      case "eq": match = val === target; break;
+      case "neq": match = val !== target; break;
+    }
+    if (match) return rule.color;
+  }
+  return defaultColor;
+}
+
+// =============================================================================
+// Multi-Key Chart Data Processing (for CompositeChart)
+// =============================================================================
+
+function processCompositeData(
+  items: Array<Record<string, unknown>>,
+  xKey: string,
+  yKeys: string[],
+  aggregate: "sum" | "count" | "avg" | null | undefined,
+): Array<Record<string, unknown>> {
+  if (items.length === 0) return [];
+
+  const firstXValue = items[0]?.[xKey];
+  const isDateKey = isDateValue(firstXValue);
+
+  if (!aggregate) {
+    return items.map((item) => ({
+      ...item,
+      label: isDateKey ? formatDateLabel(item[xKey]) : String(item[xKey] ?? ""),
+    }));
+  }
+
+  const groups = new Map<string, Array<Record<string, unknown>>>();
+  for (const item of items) {
+    const xValue = item[xKey];
+    const groupKey = isDateKey ? toDateGroupKey(xValue) : String(xValue ?? "unknown");
+    const group = groups.get(groupKey) ?? [];
+    group.push(item);
+    groups.set(groupKey, group);
+  }
+
+  const result: Array<Record<string, unknown>> = [];
+  for (const key of Array.from(groups.keys()).sort()) {
+    const group = groups.get(key)!;
+    const label = isDateKey
+      ? new Date(key).toLocaleDateString("en-US", { month: "short", day: "2-digit" })
+      : key;
+
+    const row: Record<string, unknown> = { label };
+
+    for (const yKey of yKeys) {
+      if (aggregate === "count") {
+        row[yKey] = group.length;
+      } else if (aggregate === "sum") {
+        row[yKey] = group.reduce((sum, item) => {
+          const v = item[yKey];
+          return sum + (typeof v === "number" ? v : parseFloat(String(v)) || 0);
+        }, 0);
+      } else {
+        const sum = group.reduce((s, item) => {
+          const v = item[yKey];
+          return s + (typeof v === "number" ? v : parseFloat(String(v)) || 0);
+        }, 0);
+        row[yKey] = group.length > 0 ? sum / group.length : 0;
+      }
+    }
+
+    result.push(row);
+  }
+  return result;
+}
+
+// =============================================================================
 // Registry
 // =============================================================================
 
@@ -350,7 +489,8 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     // Data display
     Table: ({ props }) => {
       const { data } = useData();
-      const items = resolveData(data, props.dataPath);
+      const rawItems = resolveData(data, props.dataPath);
+      const items = applyFilters(rawItems, props.filter);
       const editable = props.editable ?? false;
       const edit = useEdit();
 
@@ -391,6 +531,16 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
       const rawItems = resolveData(data, props.dataPath);
       const { items, valueKey } = processChartData(rawItems, props.xKey, props.yKey, props.aggregate);
       const chartColor = props.color ?? "var(--chart-1)";
+      const refLineColor = props.referenceLineColor ?? "#ef4444";
+      const hasRefLine = props.referenceLine != null;
+
+      // Build effective color rules: explicit colorRules take priority, then thresholdColor shorthand
+      const effectiveColorRules: ColorRule[] | null = props.colorRules ??
+        (props.thresholdColor && hasRefLine
+          ? [{ condition: { field: valueKey, operator: "gt" as FilterOp, value: props.referenceLine! }, color: props.thresholdColor }]
+          : null);
+      const hasConditionalColor = effectiveColorRules && effectiveColorRules.length > 0;
+
       const chartConfig = { [valueKey]: { label: valueKey, color: chartColor } } satisfies ChartConfig;
 
       if (items.length === 0) {
@@ -404,8 +554,35 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
             <RechartsBarChart accessibilityLayer data={items}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
+              <YAxis hide domain={hasRefLine ? [0, (dataMax: number) => Math.max(dataMax, props.referenceLine! * 1.1)] : undefined} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey={valueKey} fill={`var(--color-${valueKey})`} radius={4} />
+              {hasConditionalColor ? (
+                <Bar dataKey={valueKey} radius={4}>
+                  {items.map((entry, index) => (
+                    <Cell
+                      key={index}
+                      fill={resolveBarColor(entry, effectiveColorRules, chartColor)}
+                    />
+                  ))}
+                </Bar>
+              ) : (
+                <Bar dataKey={valueKey} fill={`var(--color-${valueKey})`} radius={4} />
+              )}
+              {hasRefLine && (
+                <ReferenceLine
+                  y={props.referenceLine!}
+                  stroke={refLineColor}
+                  strokeDasharray="6 3"
+                  strokeWidth={2}
+                  label={props.referenceLineLabel ? {
+                    value: props.referenceLineLabel,
+                    position: "insideTopRight",
+                    fill: refLineColor,
+                    fontSize: 12,
+                    fontWeight: 600,
+                  } : undefined}
+                />
+              )}
             </RechartsBarChart>
           </ChartContainer>
         </div>
@@ -417,6 +594,8 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
       const rawItems = resolveData(data, props.dataPath);
       const { items, valueKey } = processChartData(rawItems, props.xKey, props.yKey, props.aggregate);
       const chartColor = props.color ?? "var(--chart-1)";
+      const refLineColor = props.referenceLineColor ?? "#ef4444";
+      const hasThreshold = props.referenceLine != null;
       const chartConfig = { [valueKey]: { label: valueKey, color: chartColor } } satisfies ChartConfig;
 
       if (items.length === 0) {
@@ -430,9 +609,114 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
             <RechartsLineChart accessibilityLayer data={items}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
+              {hasThreshold && <YAxis hide domain={[0, (dataMax: number) => Math.max(dataMax, props.referenceLine! * 1.1)]} />}
               <ChartTooltip content={<ChartTooltipContent />} />
               <Line type="monotone" dataKey={valueKey} stroke={`var(--color-${valueKey})`} strokeWidth={2} dot={false} />
+              {hasThreshold && (
+                <ReferenceLine
+                  y={props.referenceLine!}
+                  stroke={refLineColor}
+                  strokeDasharray="6 3"
+                  strokeWidth={2}
+                  label={props.referenceLineLabel ? {
+                    value: props.referenceLineLabel,
+                    position: "insideTopRight",
+                    fill: refLineColor,
+                    fontSize: 12,
+                    fontWeight: 600,
+                  } : undefined}
+                />
+              )}
             </RechartsLineChart>
+          </ChartContainer>
+        </div>
+      );
+    },
+
+    CompositeChart: ({ props }) => {
+      const { data } = useData();
+      const rawItems = resolveData(data, props.dataPath);
+
+      // Collect all yKeys from layers that need data
+      const yKeys = props.layers
+        .filter((l) => l.type !== "referenceLine" && l.yKey)
+        .map((l) => l.yKey!);
+      const items = processCompositeData(rawItems, props.xKey, yKeys, props.aggregate);
+
+      // Build chart config for all data layers
+      const chartConfig: ChartConfig = {};
+      for (const layer of props.layers) {
+        if (layer.type !== "referenceLine" && layer.yKey) {
+          chartConfig[layer.yKey] = { label: layer.yKey, color: layer.color ?? "var(--chart-1)" };
+        }
+      }
+
+      if (items.length === 0) {
+        return <div className="text-center py-4 text-muted-foreground">No data available</div>;
+      }
+
+      return (
+        <div className="w-full">
+          {props.title && <p className="text-sm font-medium mb-2">{props.title}</p>}
+          <ChartContainer config={chartConfig} className="min-h-[200px] w-full" style={{ height: props.height ?? 300 }}>
+            <ComposedChart accessibilityLayer data={items}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="label" tickLine={false} tickMargin={10} axisLine={false} />
+              <YAxis hide domain={(() => {
+                const refLayer = props.layers.find((l) => l.type === "referenceLine" && l.y != null);
+                return refLayer ? [0, (dataMax: number) => Math.max(dataMax, (refLayer.y as number) * 1.1)] : undefined;
+              })()} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              {props.layers.map((layer, i) => {
+                const key = `layer-${i}`;
+                const color = layer.color ?? "var(--chart-1)";
+
+                switch (layer.type) {
+                  case "bar":
+                    if (!layer.yKey) return null;
+                    if (layer.colorRules && layer.colorRules.length > 0) {
+                      return (
+                        <Bar key={key} dataKey={layer.yKey} radius={4}>
+                          {items.map((entry, j) => (
+                            <Cell key={j} fill={resolveBarColor(entry, layer.colorRules as ColorRule[], color)} />
+                          ))}
+                        </Bar>
+                      );
+                    }
+                    return <Bar key={key} dataKey={layer.yKey} fill={color} radius={4} />;
+
+                  case "line":
+                    if (!layer.yKey) return null;
+                    return <Line key={key} type="monotone" dataKey={layer.yKey} stroke={color} strokeWidth={2} dot={false} />;
+
+                  case "area":
+                    if (!layer.yKey) return null;
+                    return <Area key={key} type="monotone" dataKey={layer.yKey} fill={color} stroke={color} fillOpacity={0.2} />;
+
+                  case "referenceLine":
+                    if (layer.y == null) return null;
+                    return (
+                      <ReferenceLine
+                        key={key}
+                        y={layer.y}
+                        stroke={color}
+                        strokeDasharray="6 3"
+                        strokeWidth={2}
+                        label={layer.label ? {
+                          value: layer.label,
+                          position: "insideTopRight" as const,
+                          fill: color,
+                          fontSize: 12,
+                          fontWeight: 600,
+                        } : undefined}
+                      />
+                    );
+
+                  default:
+                    return null;
+                }
+              })}
+            </ComposedChart>
           </ChartContainer>
         </div>
       );

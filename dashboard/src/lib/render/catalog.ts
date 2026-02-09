@@ -158,10 +158,16 @@ export const catalog = defineCatalog(schema, {
         })),
         emptyMessage: z.string().nullable(),
         editable: z.boolean().nullable(),
+        filter: z.array(z.object({
+          key: z.string(),
+          operator: z.enum(["gt", "lt", "gte", "lte", "eq", "neq"]),
+          value: z.union([z.number(), z.string()]),
+        })).nullable(),
       }),
       description:
         "Sortable data table. dataPath points to an array of objects in the data context (e.g., 'meals'). " +
-        "Click column headers to sort. Set editable=true to enable inline cell editing and row deletion with a save button.",
+        "Click column headers to sort. Set editable=true to enable inline cell editing and row deletion with a save button. " +
+        "Use filter to show only rows matching conditions (e.g., filter: [{key: 'calories', operator: 'gt', value: 500}]).",
     },
 
     // Charts
@@ -174,9 +180,23 @@ export const catalog = defineCatalog(schema, {
         aggregate: z.enum(["sum", "count", "avg"]).nullable(),
         color: z.string().nullable(),
         height: z.number().nullable(),
+        referenceLine: z.number().nullable(),
+        referenceLineLabel: z.string().nullable(),
+        referenceLineColor: z.string().nullable(),
+        thresholdColor: z.string().nullable(),
+        colorRules: z.array(z.object({
+          condition: z.object({
+            field: z.string(),
+            operator: z.enum(["gt", "lt", "gte", "lte", "eq", "neq"]),
+            value: z.number(),
+          }),
+          color: z.string(),
+        })).nullable(),
       }),
       description:
-        "Bar chart. dataPath points to data array, xKey is category field, yKey is numeric field. Use aggregate to group by xKey.",
+        "Bar chart. dataPath points to data array, xKey is category field, yKey is numeric field. Use aggregate to group by xKey. " +
+        "Set referenceLine to draw a horizontal threshold line. Use thresholdColor for simple over-limit coloring, " +
+        "or colorRules for advanced per-bar conditional colors (e.g. colorRules: [{condition: {field: 'calories', operator: 'gt', value: 2000}, color: '#ef4444'}]).",
     },
 
     LineChart: {
@@ -188,9 +208,42 @@ export const catalog = defineCatalog(schema, {
         aggregate: z.enum(["sum", "count", "avg"]).nullable(),
         color: z.string().nullable(),
         height: z.number().nullable(),
+        referenceLine: z.number().nullable(),
+        referenceLineLabel: z.string().nullable(),
+        referenceLineColor: z.string().nullable(),
       }),
       description:
-        "Line chart. dataPath points to data array, xKey is x-axis field, yKey is numeric field. Use aggregate to group by xKey.",
+        "Line chart. dataPath points to data array, xKey is x-axis field, yKey is numeric field. Use aggregate to group by xKey. " +
+        "Set referenceLine to draw a horizontal threshold line at that value.",
+    },
+
+    CompositeChart: {
+      props: z.object({
+        title: z.string().nullable(),
+        dataPath: z.string(),
+        xKey: z.string(),
+        aggregate: z.enum(["sum", "count", "avg"]).nullable(),
+        height: z.number().nullable(),
+        layers: z.array(z.object({
+          type: z.enum(["bar", "line", "area", "referenceLine"]),
+          yKey: z.string().nullable(),
+          y: z.number().nullable(),
+          color: z.string().nullable(),
+          label: z.string().nullable(),
+          colorRules: z.array(z.object({
+            condition: z.object({
+              field: z.string(),
+              operator: z.enum(["gt", "lt", "gte", "lte", "eq", "neq"]),
+              value: z.number(),
+            }),
+            color: z.string(),
+          })).nullable(),
+        })),
+      }),
+      description:
+        "Composable chart with multiple layers on one axis. Overlay bars, lines, areas, and reference lines. " +
+        "All layers share the same dataPath, xKey, and aggregate. Each layer specifies its own yKey (or y for referenceLine) and color. " +
+        "Use colorRules on bar layers for conditional coloring.",
     },
   },
 

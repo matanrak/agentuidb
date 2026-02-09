@@ -177,7 +177,126 @@ Note: xKey for time-based charts MUST be "created_at" — that is the date/time 
 
 **"Show my contacts"** — No numeric trend, so skip the chart. Just a clean table with name, role, company, context columns inside a Card.
 
-**Key principle for charts:** For daily tracking data (calories, spending, workouts) → BarChart with xKey="created_at". For long-term continuous trends (weight, portfolio) → LineChart with xKey="created_at". For "breakdown" or "by category" → BarChart with xKey as the categorical field name.`;
+**Key principle for charts:** For daily tracking data (calories, spending, workouts) → BarChart with xKey="created_at". For long-term continuous trends (weight, portfolio) → LineChart with xKey="created_at". For "breakdown" or "by category" → BarChart with xKey as the categorical field name.
+
+### 8. Data Transforms
+
+To create derived datasets, add a special \`_transforms\` element in the elements map. This element is never rendered (don't add it to any children array). Components then reference the derived data via dataPath.
+
+**CRITICAL: Transforms go inside elements, NOT at the top level.**
+
+\`\`\`json
+{
+  "root": "dashboard",
+  "elements": {
+    "_transforms": {
+      "type": "_Transforms",
+      "props": {
+        "transforms": [
+          {
+            "source": "meals",
+            "output": "daily_totals",
+            "steps": [
+              {
+                "type": "groupAggregate",
+                "groupBy": "created_at",
+                "granularity": "day",
+                "aggregations": [
+                  { "field": "calories", "method": "sum", "as": "total_calories" },
+                  { "field": "protein_g", "method": "avg", "as": "avg_protein" }
+                ]
+              }
+            ]
+          },
+          {
+            "source": "daily_totals",
+            "output": "over_limit_days",
+            "steps": [
+              { "type": "filter", "key": "total_calories", "operator": "gt", "value": 2000 },
+              { "type": "sort", "key": "total_calories", "order": "desc" }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "dashboard": { "type": "Stack", "props": { "direction": "vertical", "gap": "lg" }, "children": ["chart-card", "table-card"] },
+    "chart-card": { "type": "Card", "props": { "title": "Daily Calories" }, "children": ["chart"] },
+    "chart": { "type": "BarChart", "props": { "dataPath": "daily_totals", "xKey": "label", "yKey": "total_calories", "color": "#f97316", "height": 300, "referenceLine": 2000, "thresholdColor": "#ef4444" }, "children": [] },
+    "table-card": { "type": "Card", "props": { "title": "Over-Limit Days" }, "children": ["table"] },
+    "table": { "type": "Table", "props": { "dataPath": "over_limit_days", "columns": [{ "key": "label", "label": "Date" }, { "key": "total_calories", "label": "Calories" }] }, "children": [] }
+  }
+}
+\`\`\`
+
+**IMPORTANT:** Do NOT add "_transforms" to any element's children array — it is a data-only element that must not be rendered.
+
+**Available step types:**
+- \`groupAggregate\`: Group rows by a field and compute aggregations (sum/count/avg/min/max). Use \`granularity\` ("day"/"week"/"month"/"year") for date fields. Produces rows with a \`label\` field (formatted date) and \`_group\` field (raw group key), plus your named aggregation fields.
+- \`filter\`: Keep rows matching a condition. Operators: "gt", "lt", "gte", "lte", "eq", "neq".
+- \`sort\`: Sort rows by a field. Order: "asc" or "desc".
+- \`compute\`: Add a computed field. E.g. \`{ "type": "compute", "field": "total_calories", "operator": "gt", "value": 2000, "as": "over_limit" }\` adds a boolean \`over_limit\` field. Arithmetic operators (add/sub/mul/div) produce numbers.
+
+Transforms chain: each step's output feeds the next. One transform's output can be another's source. Components use \`dataPath: "over_limit_days"\` to reference the derived dataset.
+
+**When to use transforms:**
+- User asks about aggregated data (e.g., "which days...", "total per week", "average by category")
+- User wants filtered/derived views (e.g., "only days over 2000 calories")
+- You need the same data aggregated differently for a table vs a chart
+- A Table needs to show computed/aggregated data (transforms do the aggregation, Table just displays it)
+
+**Important:** When using transforms, the source collection must still be referenced by at least one component's dataPath OR by the transform itself. The system auto-loads collections referenced in transforms.
+
+**When using transforms with BarChart:** If the transform already aggregates the data (e.g. groupAggregate sums calories per day), do NOT also set \`aggregate\` on the BarChart — the data is already aggregated. Use \`xKey: "label"\` (the formatted date from the transform) and \`yKey\` pointing to your aggregation field name.
+
+### 9. Thresholds, Limits & Conditional Colors
+
+**Simple threshold (BarChart shorthand):**
+- \`referenceLine\`: number — draws a dashed horizontal line at this value
+- \`referenceLineLabel\`: string — label for the line
+- \`thresholdColor\`: string — bars exceeding the referenceLine turn this color
+
+**Advanced conditional colors (BarChart):**
+- \`colorRules\`: array of rules, each with a condition and color. First matching rule wins.
+- Example: \`colorRules: [{ condition: { field: "calories", operator: "gt", value: 2000 }, color: "#ef4444" }, { condition: { field: "calories", operator: "gt", value: 1500 }, color: "#f59e0b" }]\`
+- This creates a traffic-light effect: >2000 = red, >1500 = amber, rest = default color.
+
+**Table filter prop:**
+- \`filter\`: array of conditions to show only matching rows.
+- Each condition: \`{ key: "fieldName", operator: "gt"|"lt"|"gte"|"lte"|"eq"|"neq", value: number|string }\`
+
+**Proactive reference lines:** When building a BarChart for health, fitness, or budget data, ALWAYS consider adding a \`referenceLine\` at a well-known guideline value — even if the user didn't explicitly ask for one. A reference line adds instant context and makes the chart far more useful. Use your domain knowledge to pick the right value and label. Examples:
+- **Daily protein intake** → \`referenceLine: 50, referenceLineLabel: "50g recommended"\` (the FDA daily value for adults)
+- **Daily spending / budget** → If the user tracks expenses and mentions a budget (e.g., $100/day), add \`referenceLine: 100, referenceLineLabel: "$100 budget"\`. If no budget is mentioned, skip it — don't guess financial limits.
+- **Daily water intake** → \`referenceLine: 2000, referenceLineLabel: "2L goal"\` (commonly recommended ~8 cups / 2 liters per day, tracked in mL)
+
+The goal: if a standard guideline exists for the metric being charted, include a reference line so the user can instantly see how they're doing relative to the benchmark.
+
+### 10. CompositeChart
+
+Use \`CompositeChart\` to overlay multiple data series on one chart. Perfect for comparing metrics or adding reference lines alongside data.
+
+\`\`\`json
+{
+  "type": "CompositeChart",
+  "props": {
+    "dataPath": "meals",
+    "xKey": "created_at",
+    "aggregate": "sum",
+    "height": 300,
+    "layers": [
+      { "type": "bar", "yKey": "calories", "color": "#f97316", "colorRules": [{ "condition": { "field": "calories", "operator": "gt", "value": 2000 }, "color": "#ef4444" }] },
+      { "type": "line", "yKey": "protein_g", "color": "#10b981" },
+      { "type": "referenceLine", "y": 2000, "color": "#ef4444", "label": "2000 cal limit" }
+    ]
+  }
+}
+\`\`\`
+
+Layer types: "bar", "line", "area", "referenceLine". All data layers share the same dataPath and aggregate. Use when you need multiple metrics on one axis.
+
+**Example — "Show days I went over 2000 calories":**
+Use transforms to create \`daily_totals\` (groupAggregate meals by day, sum calories) and \`over_limit_days\` (filter where total > 2000). Show a BarChart on \`daily_totals\` with referenceLine=2000 and thresholdColor="#ef4444". Show a Table on \`over_limit_days\` with columns for date and total calories.`;
 
   // ── Collection Schemas + Sample Data ──
   if (context?.collections) {
