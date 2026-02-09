@@ -22,8 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ConnectionStatus } from "@/components/settings/connection-status";
-import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { ConnectionStatus } from "@/components/layout/connection-status";
 import { useViews } from "@/hooks/use-views";
 
 const BUILT_IN_TABS = [
@@ -148,10 +147,9 @@ export function Navbar() {
       {/* Spacer */}
       <div className="flex-1 min-w-4" />
 
-      {/* Right side: status + settings */}
+      {/* Right side: status */}
       <div className="flex items-center gap-2 shrink-0">
         <ConnectionStatus />
-        <SettingsDialog />
       </div>
     </nav>
   );
