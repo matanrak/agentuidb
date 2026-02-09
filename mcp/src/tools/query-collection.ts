@@ -3,6 +3,9 @@ import { z } from "zod";
 import { getDb } from "../db.js";
 import { collectionExists } from "../meta.js";
 
+/** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
+const escIdent = (name: string) => name.replace(/`/g, "``");
+
 export function registerQueryCollection(server: McpServer): void {
   server.tool(
     "query_collection",
@@ -33,31 +36,24 @@ export function registerQueryCollection(server: McpServer): void {
         if (filters) {
           let i = 0;
           for (const [field, value] of Object.entries(filters)) {
-            const safeField = field.replace(/[^a-zA-Z0-9_]/g, "");
-            if (!safeField) continue;
+            if (!field) continue;
             const paramName = `p${i}`;
             vars[paramName] = value;
-            whereClauses.push(`\`${safeField}\` = $${paramName}`);
+            whereClauses.push(`\`${escIdent(field)}\` = $${paramName}`);
             i++;
           }
         }
 
-        // Backtick-escaped table name avoids type::table() which fails if the WS connection loses root auth
-        const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
-        if (!safeName) {
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid collection name" }) }],
-            isError: true,
-          };
-        }
-        const safeSortField = sortField.replace(/[^a-zA-Z0-9_]/g, "") || "created_at";
-        let query = `SELECT * FROM \`${safeName}\``;
+        // Collection name is already validated by collectionExists() above.
+        // Escape backticks to safely embed in backtick-delimited identifier.
+        const safeLimit = Math.max(1, Math.min(100, Math.floor(maxResults)));
+        let query = `SELECT * FROM \`${escIdent(collection)}\``;
 
         if (whereClauses.length > 0) {
           query += ` WHERE ${whereClauses.join(" AND ")}`;
         }
 
-        query += ` ORDER BY \`${safeSortField}\` ${sortDir} LIMIT ${maxResults}`;
+        query += ` ORDER BY \`${escIdent(sortField)}\` ${sortDir} LIMIT ${safeLimit}`;
 
         const db = await getDb();
         const [results] = await db.query<[Record<string, unknown>[]]>(query, vars);

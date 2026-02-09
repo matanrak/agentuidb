@@ -2,6 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getDb } from "../db.js";
 import { listCollections } from "../meta.js";
 
+/** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
+const escIdent = (name: string) => name.replace(/`/g, "``");
+
 export function registerListCollections(server: McpServer): void {
   server.tool(
     "list_collections",
@@ -16,11 +19,9 @@ export function registerListCollections(server: McpServer): void {
           collections.map(async (col) => {
             let count = 0;
             try {
-              // Backtick-escaped table name avoids type::table() which fails if the WS connection loses root auth
-              const safeName = col.name.replace(/[^a-zA-Z0-9_]/g, "");
-              if (!safeName) throw new Error("Invalid collection name");
+              // Collection names come from _collections_meta; escape backticks for safe embedding.
               const [countResult] = await db.query<[{ count: number }[]]>(
-                `SELECT count() FROM \`${safeName}\` GROUP ALL`
+                `SELECT count() FROM \`${escIdent(col.name)}\` GROUP ALL`
               );
               count = countResult?.[0]?.count ?? 0;
             } catch {

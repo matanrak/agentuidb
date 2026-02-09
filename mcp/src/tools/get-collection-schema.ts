@@ -3,6 +3,9 @@ import { z } from "zod";
 import { getDb } from "../db.js";
 import { getCollectionMeta } from "../meta.js";
 
+/** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
+const escIdent = (name: string) => name.replace(/`/g, "``");
+
 export function registerGetCollectionSchema(server: McpServer): void {
   server.tool(
     "get_collection_schema",
@@ -23,11 +26,9 @@ export function registerGetCollectionSchema(server: McpServer): void {
         const db = await getDb();
         let count = 0;
         try {
-          // Backtick-escaped table name avoids type::table() which fails if the WS connection loses root auth
-          const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
-          if (!safeName) throw new Error("Invalid collection name");
+          // Collection name is already validated by getCollectionMeta() above.
           const [countResult] = await db.query<[{ count: number }[]]>(
-            `SELECT count() FROM \`${safeName}\` GROUP ALL`
+            `SELECT count() FROM \`${escIdent(collection)}\` GROUP ALL`
           );
           count = countResult?.[0]?.count ?? 0;
         } catch {

@@ -53,6 +53,7 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
   // Keep React state in sync with SDK auto-reconnect events
   useEffect(() => {
     if (!db) return;
+    const currentDb = db;
 
     const onConnected = () => {
       setStatus("connected");
@@ -69,16 +70,16 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
       setError(err.message);
     };
 
-    db.emitter.subscribe("connected", onConnected);
-    db.emitter.subscribe("reconnecting", onReconnecting);
-    db.emitter.subscribe("disconnected", onDisconnected);
-    db.emitter.subscribe("error", onError);
+    currentDb.emitter.subscribe("connected", onConnected);
+    currentDb.emitter.subscribe("reconnecting", onReconnecting);
+    currentDb.emitter.subscribe("disconnected", onDisconnected);
+    currentDb.emitter.subscribe("error", onError);
 
     return () => {
-      db.emitter.unSubscribe("connected", onConnected);
-      db.emitter.unSubscribe("reconnecting", onReconnecting);
-      db.emitter.unSubscribe("disconnected", onDisconnected);
-      db.emitter.unSubscribe("error", onError);
+      currentDb.emitter.unSubscribe("connected", onConnected);
+      currentDb.emitter.unSubscribe("reconnecting", onReconnecting);
+      currentDb.emitter.unSubscribe("disconnected", onDisconnected);
+      currentDb.emitter.unSubscribe("error", onError);
     };
   }, [db]);
 

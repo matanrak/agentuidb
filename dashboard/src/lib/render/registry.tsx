@@ -53,9 +53,8 @@ async function querySurrealCollection(
   const db = getSurreal();
   if (!db) throw new Error("SurrealDB not connected");
 
-  // Backtick-escaped table name avoids type::table() which fails if the WS connection loses root auth
-  const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
-  if (!safeName) throw new Error(`Invalid collection name: ${collection}`);
+  /** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
+  const esc = (name: string) => name.replace(/`/g, "``");
 
   const vars: Record<string, unknown> = {};
   const whereClauses: string[] = [];
@@ -63,22 +62,22 @@ async function querySurrealCollection(
   if (filters) {
     let i = 0;
     for (const [field, value] of Object.entries(filters)) {
-      const safeField = field.replace(/[^a-zA-Z0-9_]/g, "");
-      if (!safeField) continue;
+      if (!field) continue;
       vars[`p${i}`] = value;
-      whereClauses.push(`\`${safeField}\` = $p${i}`);
+      whereClauses.push(`\`${esc(field)}\` = $p${i}`);
       i++;
     }
   }
 
-  const safeSortBy = (sort_by ?? "created_at").replace(/[^a-zA-Z0-9_]/g, "") || "created_at";
-  let query = `SELECT * FROM \`${safeName}\``;
+  const sortBy = sort_by ?? "created_at";
+  let query = `SELECT * FROM \`${esc(collection)}\``;
   if (whereClauses.length > 0) {
     query += ` WHERE ${whereClauses.join(" AND ")}`;
   }
   const safeSortDir = (sort_order ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
-  query += ` ORDER BY \`${safeSortBy}\` ${safeSortDir}`;
-  query += ` LIMIT ${limit ?? 50}`;
+  query += ` ORDER BY \`${esc(sortBy)}\` ${safeSortDir}`;
+  const safeLimit = Math.max(1, Math.min(100, Math.floor(limit ?? 50)));
+  query += ` LIMIT ${safeLimit}`;
 
   const [results] = await db.query<[Record<string, unknown>[]]>(query, vars);
   return results ?? [];
