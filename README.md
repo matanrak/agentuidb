@@ -43,27 +43,47 @@ You talk naturally. The agent extracts structured data and stores it automatical
 }
 ```
 
-## Dashboard
+# Quick Start (Docker)
 
-TBD
-
-# Quick Start
+The fastest way to get everything running. Requires [Docker](https://www.docker.com/get-started).
 
 ```bash
-npm install
-npm run build
-npm run db:demo          # starts SurrealDB + loads sample data
+docker compose up -d        # starts DB, MCP server, and Dashboard
+npm run docker:seed          # load sample data (optional)
 ```
 
-Then in a second terminal:
+Open [http://localhost:3000](http://localhost:3000) for the dashboard.
+
+That's it. Three services running:
+
+| Service   | URL                     | Description                     |
+|-----------|-------------------------|---------------------------------|
+| Dashboard | http://localhost:3000   | Next.js web UI with AI chat     |
+| MCP       | http://localhost:3001   | MCP server (Streamable HTTP)    |
+| SurrealDB | http://localhost:8000   | Database                        |
+
+### Port Conflicts
+
+If the default ports are in use, override them:
 
 ```bash
-cd dashboard && npm install && npm run dev
+DB_PORT=8800 MCP_PORT=3800 DASHBOARD_PORT=3900 docker compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+### Docker Commands
 
-# Setup
+```bash
+docker compose up -d         # start all services
+docker compose down          # stop all services
+docker compose down -v       # stop and delete data
+docker compose logs -f       # tail logs
+docker compose build         # rebuild images
+npm run docker:seed          # load sample data into DB
+```
+
+# Local Development
+
+For developing without Docker.
 
 ## Prerequisites
 
@@ -73,101 +93,95 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Install
 
 ```bash
-npm install
-npm run build
+npm install                  # root deps (scripts)
+cd mcp && npm install        # MCP server deps
+cd ../dashboard && npm install  # dashboard deps
 ```
 
-Create a `.env` file in the project root (optional — you can also export these directly):
+## Build
 
-```
-AGENTUIDB_URL=http://127.0.0.1:8000
-OPENROUTER_API_KEY=sk-or-...
+```bash
+npm run build                # compiles the MCP server
 ```
 
 ## Running the Database
 
-Start a local SurrealDB instance (data persists to `.surreal/`):
-
 ```bash
-npm run db
+npm run db                   # start SurrealDB on http://127.0.0.1:8000
+npm run db:demo              # start + auto-load sample data
 ```
 
-This starts SurrealDB on `http://127.0.0.1:8000` with user `root` / password `root`.
+Data persists to `.surreal/` (gitignored).
+
+## Web Dashboard
+
+```bash
+cd dashboard && npm run dev
+```
+
+Opens at [http://localhost:3000](http://localhost:3000).
 
 ## Seed Data
 
-Two ways to populate the database with sample data — either load a static snapshot or generate fresh data through the AI agent.
-
-### Loading Seed Data
-
-To load a pre-built snapshot of sample data directly into the DB (requires `npm run db` running in another terminal):
+Two ways to populate the database:
 
 ```bash
-npm run db:load
-```
-
-This imports `scripts/seed-data.surql` — useful for quickly populating the database without calling the AI.
-
-### Generating Seed Data via AI
-
-To generate fresh seed data by sending realistic messages through the chat agent (requires `OPENROUTER_API_KEY`):
-
-```bash
-npm run seed
+npm run db:load              # import static snapshot (fast, no API key needed)
+npm run seed                 # generate fresh data via AI (needs OPENROUTER_API_KEY)
 ```
 
 ## Chat Mode
 
-Interactive CLI chat where the AI silently stores structured data from your messages:
+Interactive CLI where the AI silently stores structured data from your messages:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-... AGENTUIDB_URL=http://127.0.0.1:8000 npm run chat
 ```
 
-Or if you have a `.env` file, the chat script reads it automatically — but env vars for `AGENTUIDB_URL` and `OPENROUTER_API_KEY` must still be set (either exported or in `.env`).
-
-Commands inside the chat REPL:
-- Type a message and the AI will respond while silently extracting and storing data
-- `dump` — print all stored collections and documents
-- `quit` — exit
+Commands: `dump` (show stored data), `quit` (exit).
 
 ## Terminal Dashboard
 
-A live-refreshing terminal UI that shows all collections and recent documents:
+Live-refreshing terminal UI showing all collections and recent documents:
 
 ```bash
 npm run watch
 ```
 
-Refreshes every 2 seconds. Reads `.env` automatically. Requires the database to be running.
-
-## Web Dashboard
-
-A Next.js app with an agentic chat interface and data visualizations:
-
-```bash
-cd dashboard
-npm install
-npm run dev
-```
-
-Opens at [http://localhost:3000](http://localhost:3000).
-
 ## Running Tests
 
-Integration tests that exercise all MCP tools via JSON-RPC over stdio (requires the database to be running):
-
 ```bash
-npm run build
-npm run test
+npm run build && npm run test
 ```
 
 ## MCP Server
 
-The server communicates over stdio using the [Model Context Protocol](https://modelcontextprotocol.io/). To use it as a tool server in an MCP-compatible client, point it at the built entry point:
+The server supports two transports:
 
+**stdio** (for MCP clients like Claude Desktop):
 ```bash
-node dist/index.js
+node mcp/dist/index.js
+```
+
+**HTTP** (for network access, used in Docker):
+```bash
+node mcp/dist/http.js       # listens on port 3001, endpoint: POST /mcp
 ```
 
 Set `AGENTUIDB_URL` to tell it where SurrealDB is running.
+
+# Project Structure
+
+```
+├── mcp/                 # MCP server (TypeScript, Node.js)
+│   ├── src/
+│   ├── Dockerfile
+│   └── package.json
+├── dashboard/           # Web dashboard (Next.js, React)
+│   ├── src/
+│   ├── Dockerfile
+│   └── package.json
+├── scripts/             # CLI tools (chat, seed, test, watch)
+├── docker-compose.yml   # Run everything with Docker
+└── package.json         # Root scripts
+```

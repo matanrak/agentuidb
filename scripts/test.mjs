@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 
 const projectRoot = new URL("..", import.meta.url).pathname;
-const proc = spawn("node", ["dist/index.js"], {
+const proc = spawn("node", ["mcp/dist/index.js"], {
   cwd: projectRoot,
   env: { ...process.env, AGENTUIDB_URL: "http://127.0.0.1:8000" },
   stdio: ["pipe", "pipe", "pipe"],
