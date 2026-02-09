@@ -30,7 +30,7 @@ export default function DashboardPage() {
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={50} minSize={20}>
-              <WidgetHub title="Recent Widgets" />
+              <WidgetHub title="Widget Inventory" />
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
