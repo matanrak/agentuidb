@@ -2,14 +2,66 @@ import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { catalog } from "@/lib/render/catalog";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const BASE_SYSTEM_PROMPT = catalog.prompt();
+
+const WORKSHOP_SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}
+
+You are a senior data analyst. The user wants you to create a rich, insightful dashboard from their data.
+
+Your job:
+1. Look at ALL available collections and understand what data exists
+2. Create a comprehensive dashboard that tells a story about the user's data
+3. Surface interesting patterns, trends, totals, and cross-collection insights
+
+Dashboard structure guidelines:
+- Start with a bold, specific Heading that captures the theme (NOT generic like "Dashboard Overview")
+- Use a Grid of stat Cards at the top showing key metrics (totals, averages, counts)
+- Include BarChart(s) for category comparisons and LineChart(s) for time-based trends
+- Add a Table for recent activity or detailed data
+- If there are 3+ collections, use Tabs to organize sections by theme
+- Use aggregate ("sum", "count", "avg") in charts to make data meaningful
+- Be creative — find the most interesting angles in the data
+
+CRITICAL:
+- You MUST include initialActions that load data from EVERY collection you reference
+- Every dataPath in a component must match a dataKey from initialActions
+- Load generous amounts of data (limit: 100) to have enough for aggregations`;
+
+function buildCollectionDocs(collections: Array<{
+  name: string;
+  description: string;
+  count?: number;
+  fields: Array<{ name: string; type: string; required: boolean }>;
+  sampleDocs?: Array<Record<string, unknown>>;
+}>): string {
+  return collections.map((col) => {
+    const fields = col.fields
+      .map((f) => `    ${f.name}: ${f.type}${f.required ? " (required)" : ""}`)
+      .join("\n");
+
+    let section = `- ${col.name} (${col.count ?? "?"} docs): ${col.description}\n${fields}`;
+
+    // Include sample data so the agent understands real field values and shapes
+    if (col.sampleDocs && col.sampleDocs.length > 0) {
+      const samples = col.sampleDocs.map((doc) => {
+        // Strip SurrealDB record ID but keep created_at so the AI sees the date field
+        const { id: _id, updated_at: _ua, ...rest } = doc;
+        return `    ${JSON.stringify(rest)}`;
+      }).join("\n");
+      section += `\n  Sample entries:\n${samples}`;
+    }
+
+    return section;
+  }).join("\n\n");
+}
 
 export async function POST(req: Request) {
   const { prompt, context } = await req.json();
   const apiKey = context?.apiKey as string | undefined;
   const model = context?.model as string | undefined;
+  const mode = context?.mode as string | undefined;
 
   if (!apiKey) {
     return new Response(JSON.stringify({ error: "OpenRouter API key not configured" }), {
@@ -18,8 +70,8 @@ export async function POST(req: Request) {
     });
   }
 
-  // Build full system prompt with collection schemas
-  let systemPrompt = BASE_SYSTEM_PROMPT;
+  const isWorkshop = mode === "workshop";
+  let systemPrompt = isWorkshop ? WORKSHOP_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT;
 
   // ── Design Guidelines ──
   systemPrompt += `
@@ -128,31 +180,15 @@ Note: xKey for time-based charts MUST be "created_at" — that is the date/time 
 
   // ── Collection Schemas + Sample Data ──
   if (context?.collections) {
-    const collectionDocs = (context.collections as Array<{
-      name: string;
-      description: string;
-      count?: number;
-      fields: Array<{ name: string; type: string; required: boolean }>;
-      sampleDocs?: Array<Record<string, unknown>>;
-    }>).map((col) => {
-      const fields = col.fields
-        .map((f) => `    ${f.name}: ${f.type}${f.required ? " (required)" : ""}`)
-        .join("\n");
-
-      let section = `- ${col.name} (${col.count ?? "?"} docs): ${col.description}\n${fields}`;
-
-      // Include sample data so the agent understands real field values and shapes
-      if (col.sampleDocs && col.sampleDocs.length > 0) {
-        const samples = col.sampleDocs.map((doc) => {
-          // Strip SurrealDB record ID but keep created_at so the AI sees the date field
-          const { id: _id, updated_at: _ua, ...rest } = doc;
-          return `    ${JSON.stringify(rest)}`;
-        }).join("\n");
-        section += `\n  Sample entries:\n${samples}`;
-      }
-
-      return section;
-    }).join("\n\n");
+    const collectionDocs = buildCollectionDocs(
+      context.collections as Array<{
+        name: string;
+        description: string;
+        count?: number;
+        fields: Array<{ name: string; type: string; required: boolean }>;
+        sampleDocs?: Array<Record<string, unknown>>;
+      }>,
+    );
 
     systemPrompt += `\n\n## Available SurrealDB Collections\n\nData loads automatically when you set dataPath on a Table or Chart component. Set dataPath to the collection name.\nAll collections have a "created_at" field (ISO 8601 datetime) — use this as xKey for time-based charts.\n\n${collectionDocs}`;
   }
@@ -161,7 +197,6 @@ Note: xKey for time-based charts MUST be "created_at" — that is the date/time 
 
   systemPrompt += `\n\nREMINDER: The date/time field is always "created_at". Tables should have editable=true.`;
 
-  // Create OpenRouter-compatible provider using AI SDK
   const openrouter = createOpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey,
@@ -171,7 +206,7 @@ Note: xKey for time-based charts MUST be "created_at" — that is the date/time 
     model: openrouter(model ?? "anthropic/claude-sonnet-4"),
     system: systemPrompt,
     prompt,
-    temperature: 0.5,
+    temperature: isWorkshop ? 0.8 : 0.5,
   });
 
   return result.toTextStreamResponse();

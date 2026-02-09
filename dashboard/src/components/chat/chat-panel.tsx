@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, Sparkles, Table, BarChart3, LayoutDashboard } from "lucide-react";
 import { useUIStream, type Spec } from "@json-render/react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
@@ -101,6 +102,7 @@ export function ChatPanel() {
   }, [handleSend]);
 
   const hasApiKey = !!settings.openrouter_api_key;
+  const hasCollections = collections.length > 0;
 
   return (
     <div className="flex flex-col h-full bg-dot-grid">
@@ -108,17 +110,28 @@ export function ChatPanel() {
       <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="flex flex-col gap-5 max-w-3xl mx-auto px-4 py-6">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 gap-6">
+            <div className="flex flex-col items-center justify-center py-16 gap-6">
               <div className="flex flex-col items-center gap-3">
                 <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 glow-amber">
                   <Sparkles className="size-5 text-primary" />
                 </div>
                 <h2 className="text-lg font-semibold text-foreground tracking-tight">What would you like to see?</h2>
-                <p className="text-sm text-muted-foreground max-w-xs text-center">
+                <p className="text-sm text-muted-foreground max-w-sm text-center">
                   Ask me to visualize your data as tables, charts, or interactive dashboards.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-2.5 max-w-lg w-full">
+
+              {hasCollections && (
+                <div className="flex flex-wrap gap-1.5 justify-center max-w-md">
+                  {collections.map((c) => (
+                    <Badge key={c.name} variant="secondary" className="text-xs">
+                      {c.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 max-w-lg w-full">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s.text}
@@ -126,8 +139,8 @@ export function ChatPanel() {
                     disabled={!hasApiKey}
                     className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-card hover:border-border transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed group"
                   >
-                    <s.icon className="size-4 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
-                    <span className="line-clamp-1">{s.text}</span>
+                    <s.icon className="size-3.5 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
+                    <span>{s.text}</span>
                   </button>
                 ))}
               </div>
