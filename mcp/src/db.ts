@@ -20,9 +20,11 @@ export async function getDb(): Promise<Surreal> {
   const password = process.env.AGENTUIDB_PASS ?? "root";
 
   db = new Surreal();
-  await db.connect(url);
-  await db.signin({ username, password });
-  await db.use({ namespace: NAMESPACE, database: DATABASE });
+  await db.connect(url, {
+    auth: { username, password },
+    namespace: NAMESPACE,
+    database: DATABASE,
+  });
   return db;
 }
 
