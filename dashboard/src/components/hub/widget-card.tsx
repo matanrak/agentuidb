@@ -72,7 +72,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
         </div>
 
         {/* Content */}
-        <div className="p-3 overflow-auto max-h-[400px]">
+        <div className="p-3">
           <DashboardRenderer
             key={dataVersion}
             spec={spec}
