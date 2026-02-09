@@ -6,10 +6,10 @@ export function ConnectionStatus() {
   const { status, error } = useSurreal();
 
   const colors: Record<string, string> = {
-    connected: "bg-emerald-400",
-    connecting: "bg-amber-400 animate-pulse",
+    connected: "bg-success",
+    connecting: "bg-warning animate-pulse",
     disconnected: "bg-muted-foreground/40",
-    error: "bg-red-400",
+    error: "bg-destructive",
   };
 
   const labels: Record<string, string> = {

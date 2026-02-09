@@ -1,14 +1,23 @@
 "use client";
 
 import { useState, useCallback, forwardRef } from "react";
-import { GripVertical, RefreshCw, X, Check } from "lucide-react";
+import { GripVertical, RefreshCw, X, Check, FolderPlus, Plus } from "lucide-react";
 import { type Spec } from "@json-render/react";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { DashboardRenderer } from "@/lib/render/renderer";
 import { type EditPendingState } from "@/lib/render/edit-context";
 import { useSpecData } from "@/hooks/use-spec-data";
+import { useViews } from "@/hooks/use-views";
 import type { SavedWidget } from "@/lib/storage";
 
 interface WidgetCardProps {
@@ -24,6 +33,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
   function WidgetCard({ widget, onRemove, dragAttributes, dragListeners, style, isDragging }, ref) {
     const spec = widget.spec as Spec;
     const { data, setData, dataVersion, isLoading, refresh, handleDataChange } = useSpecData(spec);
+    const { views, addView, addWidgetToView, removeWidgetFromView } = useViews();
     const [confirmRemove, setConfirmRemove] = useState(false);
     const [editPending, setEditPending] = useState<EditPendingState | null>(null);
 
@@ -55,7 +65,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
           {editPending && (
             <Button
               size="sm"
-              className="h-6 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2"
+              className="h-6 rounded-md bg-success hover:bg-success/90 text-white text-xs px-2"
               onClick={() => editPending.save()}
               disabled={editPending.saving}
               title="Save changes to database"
@@ -64,6 +74,53 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
               {editPending.saving ? "..." : `Save (${editPending.count})`}
             </Button>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 rounded-md text-muted-foreground hover:text-foreground"
+                title="Add to view"
+              >
+                <FolderPlus className="size-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              {views.length > 0 && (
+                <>
+                  {views.map((view) => {
+                    const inView = view.widgetIds.includes(widget.id);
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={view.id}
+                        checked={inView}
+                        onCheckedChange={() =>
+                          inView
+                            ? removeWidgetFromView(view.id, widget.id)
+                            : addWidgetToView(view.id, widget.id)
+                        }
+                      >
+                        {view.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem
+                onSelect={() => {
+                  const name = prompt("View name:");
+                  if (name?.trim()) {
+                    const viewId = addView(name.trim());
+                    addWidgetToView(viewId, widget.id);
+                  }
+                }}
+              >
+                <Plus className="size-3.5" />
+                New View...
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="ghost"
             size="icon"

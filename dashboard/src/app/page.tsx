@@ -1,51 +1,46 @@
 "use client";
 
-import { Header } from "@/components/layout/header";
+import { Navbar } from "@/components/layout/navbar";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { WorkshopPanel } from "@/components/workshop/workshop-panel";
 import { WidgetHub } from "@/components/hub/widget-hub";
 import { FlyAnimation } from "@/components/hub/fly-animation";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ViewPanel } from "@/components/views/view-panel";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { MessageSquare, Wand2 } from "lucide-react";
+import { useViews } from "@/hooks/use-views";
 
 export default function DashboardPage() {
+  const { activeTab } = useViews();
+  const showSplitPanel = activeTab === "chat" || activeTab === "workshop";
+
   return (
     <div className="h-screen flex flex-col">
-      <Header />
+      <div className="accent-stripe" />
+      <Navbar />
       <main className="flex-1 overflow-hidden">
-        <ResizablePanelGroup orientation="horizontal">
-          <ResizablePanel defaultSize={50} minSize={30}>
-            <Tabs defaultValue="chat" className="h-full flex flex-col">
-              <div className="px-4 pt-3 pb-0">
-                <TabsList className="w-full">
-                  <TabsTrigger value="chat" className="flex-1 gap-1.5">
-                    <MessageSquare className="size-3.5" />
-                    Chat
-                  </TabsTrigger>
-                  <TabsTrigger value="workshop" className="flex-1 gap-1.5">
-                    <Wand2 className="size-3.5" />
-                    Workshop
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <TabsContent value="chat" className="flex-1 overflow-hidden">
-                <ChatPanel />
-              </TabsContent>
-              <TabsContent value="workshop" className="flex-1 overflow-hidden">
-                <WorkshopPanel />
-              </TabsContent>
-            </Tabs>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={50} minSize={20}>
-            <WidgetHub />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        {showSplitPanel ? (
+          <ResizablePanelGroup orientation="horizontal">
+            <ResizablePanel defaultSize={50} minSize={30}>
+              {activeTab === "chat" && <ChatPanel />}
+              {activeTab === "workshop" && <WorkshopPanel />}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={20}>
+              <WidgetHub title="Recent Widgets" />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          <>
+            {activeTab === "widgets" && <WidgetHub />}
+            {!["chat", "workshop", "widgets"].includes(activeTab) && (
+              <ViewPanel viewId={activeTab} />
+            )}
+          </>
+        )}
       </main>
       <FlyAnimation />
     </div>
