@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSurreal } from "./use-surreal";
 import { useViews } from "./use-views";
 import { useWidgetHub } from "./use-widget-hub";
-import { getSurreal } from "@/lib/surreal";
+import { dbQuery } from "@/lib/surreal-client";
 import { generateDefaultLayout } from "@/lib/widget-sizing";
 import type { WidgetLayoutItem } from "@/lib/storage";
 import type { Layout, ResponsiveLayouts } from "react-grid-layout";
@@ -47,23 +47,20 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
     async function load() {
       setIsLoading(true);
 
-      // Try SurrealDB
+      // Try SurrealDB via API proxy
       if (status === "connected") {
         try {
-          const db = getSurreal();
-          if (db) {
-            const [results] = await db.query<
-              [Array<{ layouts: ResponsiveLayouts }>]
-            >(
-              "SELECT layouts FROM _view_layouts WHERE view_id = $viewId LIMIT 1",
-              { viewId },
-            );
-            if (!cancelled && results?.[0]?.layouts) {
-              setLayouts(results[0].layouts);
-              setIsLoading(false);
-              initSourceRef.current = { viewId, source: "db" };
-              return;
-            }
+          const [results] = await dbQuery<
+            [Array<{ layouts: ResponsiveLayouts }>]
+          >(
+            "SELECT layouts FROM _view_layouts WHERE view_id = $viewId LIMIT 1",
+            { viewId },
+          );
+          if (!cancelled && results?.[0]?.layouts) {
+            setLayouts(results[0].layouts);
+            setIsLoading(false);
+            initSourceRef.current = { viewId, source: "db" };
+            return;
           }
         } catch (err) {
           console.warn("Failed to load layout from SurrealDB:", err);
@@ -117,15 +114,13 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
 
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
-        const db = getSurreal();
-        if (!db) return;
         try {
-          const [updated] = await db.query<[Array<unknown>]>(
+          const [updated] = await dbQuery<[Array<unknown>]>(
             "UPDATE _view_layouts SET layouts = $layouts, updated_at = time::now() WHERE view_id = $viewId",
             { viewId, layouts: newLayouts },
           );
           if (!updated || (Array.isArray(updated) && updated.length === 0)) {
-            await db.query(
+            await dbQuery(
               "CREATE _view_layouts SET view_id = $viewId, layouts = $layouts, created_at = time::now(), updated_at = time::now()",
               { viewId, layouts: newLayouts },
             );

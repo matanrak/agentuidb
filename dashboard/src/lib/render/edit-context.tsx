@@ -8,8 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { StringRecordId } from "surrealdb";
-import { getSurreal } from "@/lib/surreal";
+import { dbMerge, dbDelete } from "@/lib/surreal-client";
 
 // -----------------------------------------------------------------------------
 // Types
@@ -142,18 +141,15 @@ export function EditProvider({ children, onSaved, onPendingChange }: EditProvide
   const pendingCount = pendingEdits.size + pendingDeletes.size;
 
   const handleSave = useCallback(async () => {
-    const db = getSurreal();
-    if (!db) return;
-
     setIsSaving(true);
     try {
       for (const [recordId, fields] of pendingEdits) {
         if (!pendingDeletes.has(recordId)) {
-          await db.merge(new StringRecordId(recordId), fields);
+          await dbMerge(recordId, fields);
         }
       }
       for (const recordId of pendingDeletes) {
-        await db.delete(new StringRecordId(recordId));
+        await dbDelete(recordId);
       }
       setPendingEdits(new Map());
       setPendingDeletes(new Set());
