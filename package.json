@@ -1,33 +1,27 @@
 {
-  "name": "agentuidb",
+  "name": "agentuidb-root",
   "version": "1.0.0",
-  "description": "MCP server providing structured data storage backed by SurrealDB",
+  "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "bin": {
-    "agentuidb": "dist/index.js"
-  },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "build": "npm run build --prefix mcp",
+    "start": "node mcp/dist/index.js",
+    "start:http": "node mcp/dist/http.js",
+    "dev": "npm run dev --prefix mcp",
     "test": "node scripts/test.mjs",
     "chat": "node scripts/chat.mjs",
     "watch": "node scripts/watch.mjs",
     "seed": "node scripts/seed.mjs",
     "db": "bash scripts/start-db.sh",
     "db:demo": "bash scripts/start-db-demo.sh",
-    "db:load": "bash scripts/load-seed-data.sh"
+    "db:load": "bash scripts/load-seed-data.sh",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:seed": "docker compose exec db /surreal import --conn http://localhost:8000 --user root --pass root --ns agentuidb --db default /seed-data.surql"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.26",
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "surrealdb": "^1.3.2",
-    "zod": "^3.25.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "@ai-sdk/openai": "^3.0.26"
   }
 }

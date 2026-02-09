@@ -1,0 +1,26 @@
+{
+  "name": "agentuidb",
+  "version": "1.0.0",
+  "description": "MCP server providing structured data storage backed by SurrealDB",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "agentuidb": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:http": "node dist/http.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "surrealdb": "^1.3.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

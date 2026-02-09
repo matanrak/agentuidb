@@ -24,7 +24,7 @@ if (!process.env.AGENTUIDB_URL) { console.error("Set AGENTUIDB_URL"); process.ex
 
 // --- MCP server ---
 const projectRoot = new URL("..", import.meta.url).pathname;
-const mcp = spawn("node", ["dist/index.js"], {
+const mcp = spawn("node", ["mcp/dist/index.js"], {
   cwd: projectRoot,
   env: { ...process.env },
   stdio: ["pipe", "pipe", "pipe"],
