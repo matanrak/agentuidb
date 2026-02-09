@@ -59,12 +59,12 @@ function buildCollectionDocs(collections: Array<{
 
 export async function POST(req: Request) {
   const { prompt, context } = await req.json();
-  const apiKey = context?.apiKey as string | undefined;
-  const model = context?.model as string | undefined;
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const model = process.env.OPENROUTER_MODEL;
   const mode = context?.mode as string | undefined;
 
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "OpenRouter API key not configured" }), {
+    return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY is not set in .env.local" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });

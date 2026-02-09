@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
-import { useSettings } from "@/hooks/use-settings";
 import { useCollections, type CollectionMeta } from "@/hooks/use-collections";
 
 interface Message {
@@ -26,7 +25,6 @@ const SUGGESTIONS = [
 ];
 
 export function ChatPanel() {
-  const { settings } = useSettings();
   const { collections } = useCollections();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -86,13 +84,8 @@ export function ChatPanel() {
       }));
     }
 
-    // Send to AI with API key from settings
-    await send(msg, {
-      ...context,
-      apiKey: settings.openrouter_api_key,
-      model: settings.openrouter_model,
-    });
-  }, [input, send, settings.openrouter_api_key, settings.openrouter_model]);
+    await send(msg, context);
+  }, [input, send]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -101,7 +94,6 @@ export function ChatPanel() {
     }
   }, [handleSend]);
 
-  const hasApiKey = !!settings.openrouter_api_key;
   const hasCollections = collections.length > 0;
 
   return (
@@ -136,7 +128,7 @@ export function ChatPanel() {
                   <button
                     key={s.text}
                     onClick={() => handleSend(s.text)}
-                    disabled={!hasApiKey}
+                    disabled={isStreaming}
                     className={`flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-card hover:border-border transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed group animate-fade-in-up stagger-${i + 1}`}
                   >
                     <s.icon className="size-3.5 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
@@ -144,9 +136,6 @@ export function ChatPanel() {
                   </button>
                 ))}
               </div>
-              {!hasApiKey && (
-                <p className="text-xs text-destructive/80">Set your OpenRouter API key in Settings to get started.</p>
-              )}
             </div>
           )}
 
@@ -183,14 +172,14 @@ export function ChatPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={hasApiKey ? "Ask about your data..." : "Set your OpenRouter API key in Settings first"}
-              disabled={isStreaming || !hasApiKey}
+              placeholder="Ask about your data..."
+              disabled={isStreaming}
               className="min-h-[36px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
               rows={1}
             />
             <Button
               onClick={() => handleSend()}
-              disabled={isStreaming || !input.trim() || !hasApiKey}
+              disabled={isStreaming || !input.trim()}
               size="icon"
               className="shrink-0 size-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30"
             >

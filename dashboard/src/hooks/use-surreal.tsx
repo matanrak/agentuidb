@@ -3,7 +3,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import Surreal from "surrealdb";
 import { connectSurreal, closeSurreal } from "@/lib/surreal";
-import { useSettings } from "./use-settings";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -16,8 +15,15 @@ interface SurrealContextValue {
 
 const SurrealContext = createContext<SurrealContextValue | null>(null);
 
+const SURREAL_CONFIG = {
+  url: process.env.NEXT_PUBLIC_SURREALDB_URL ?? "http://127.0.0.1:8000",
+  username: process.env.NEXT_PUBLIC_SURREALDB_USER ?? "root",
+  password: process.env.NEXT_PUBLIC_SURREALDB_PASS ?? "root",
+  namespace: process.env.NEXT_PUBLIC_SURREALDB_NS ?? "agentuidb",
+  database: process.env.NEXT_PUBLIC_SURREALDB_DB ?? "default",
+};
+
 export function SurrealProvider({ children }: { children: ReactNode }) {
-  const { settings } = useSettings();
   const [db, setDb] = useState<Surreal | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
@@ -25,20 +31,14 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(async () => {
     if (connectingRef.current) return;
-    if (!settings.surrealdb_url) return;
+    if (!SURREAL_CONFIG.url) return;
 
     connectingRef.current = true;
     setStatus("connecting");
     setError(null);
 
     try {
-      const instance = await connectSurreal({
-        url: settings.surrealdb_url,
-        namespace: settings.surrealdb_namespace,
-        database: settings.surrealdb_database,
-        username: settings.surrealdb_user,
-        password: settings.surrealdb_pass,
-      });
+      const instance = await connectSurreal(SURREAL_CONFIG);
       setDb(instance);
       setStatus("connected");
     } catch (err) {
@@ -48,7 +48,7 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
     } finally {
       connectingRef.current = false;
     }
-  }, [settings.surrealdb_url, settings.surrealdb_namespace, settings.surrealdb_database, settings.surrealdb_user, settings.surrealdb_pass]);
+  }, []);
 
   // Keep React state in sync with SDK auto-reconnect events
   useEffect(() => {
