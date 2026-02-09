@@ -1,12 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { LayoutGrid, X } from "lucide-react";
+import { LayoutGrid, X, GripVertical } from "lucide-react";
 import { type Spec } from "@json-render/react";
+import { ResponsiveGridLayout, useContainerWidth, verticalCompactor } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 import { Button } from "@/components/ui/button";
 import { DashboardRenderer } from "@/lib/render/renderer";
 import { useViews } from "@/hooks/use-views";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
+import { useViewLayout } from "@/hooks/use-view-layout";
 import { useSpecData } from "@/hooks/use-spec-data";
 import type { SavedWidget } from "@/lib/storage";
 
@@ -15,8 +19,11 @@ function ViewWidgetCard({ widget, onRemove }: { widget: SavedWidget; onRemove: (
   const { data, setData, dataVersion, isLoading, refresh, handleDataChange } = useSpecData(spec);
 
   return (
-    <div className="border border-border/50 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden widget-card-hover">
+    <div className="h-full flex flex-col border border-border/50 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden widget-card-hover">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+        <div className="drag-handle text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing">
+          <GripVertical className="size-3.5" />
+        </div>
         <span className="text-xs font-medium text-foreground/80 truncate flex-1">{widget.title}</span>
         <Button
           variant="ghost"
@@ -28,7 +35,7 @@ function ViewWidgetCard({ widget, onRemove }: { widget: SavedWidget; onRemove: (
           <X className="size-3" />
         </Button>
       </div>
-      <div className="p-3">
+      <div className="flex-1 overflow-auto p-3">
         <DashboardRenderer
           key={dataVersion}
           spec={spec}
@@ -49,13 +56,19 @@ export function ViewPanel({ viewId }: { viewId: string }) {
 
   const view = views.find((v) => v.id === viewId);
 
+  const widgetIds = useMemo(() => view?.widgetIds ?? [], [view?.widgetIds]);
+
   const viewWidgets = useMemo(() => {
     if (!view) return [];
     const byId = new Map(widgets.map((w) => [w.id, w]));
-    return view.widgetIds
+    return widgetIds
       .map((id) => byId.get(id))
       .filter((w): w is SavedWidget => !!w);
-  }, [view, widgets]);
+  }, [view, widgets, widgetIds]);
+
+  const { layouts, onLayoutChange, isLoading } = useViewLayout(viewId, widgetIds);
+
+  const { width, containerRef, mounted } = useContainerWidth();
 
   if (!view) {
     return (
@@ -88,16 +101,31 @@ export function ViewPanel({ viewId }: { viewId: string }) {
         <span className="text-xs font-medium text-foreground/70">{view.name}</span>
         <span className="text-[10px] text-muted-foreground/50 tabular-nums">{viewWidgets.length}</span>
       </div>
-      <div className="flex-1 overflow-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-4">
-          {viewWidgets.map((widget) => (
-            <ViewWidgetCard
-              key={widget.id}
-              widget={widget}
-              onRemove={() => removeWidgetFromView(viewId, widget.id)}
-            />
-          ))}
-        </div>
+      <div className="flex-1 overflow-auto p-4" ref={containerRef}>
+        {mounted && (
+          <ResponsiveGridLayout
+            layouts={layouts}
+            breakpoints={{ lg: 1200, md: 768, sm: 0 }}
+            cols={{ lg: 12, md: 8, sm: 4 }}
+            rowHeight={80}
+            width={width}
+            onLayoutChange={onLayoutChange}
+            dragConfig={{ enabled: true, handle: ".drag-handle" }}
+            resizeConfig={{ enabled: true, handles: ["se"] }}
+            margin={[12, 12] as const}
+            containerPadding={[0, 0] as const}
+            compactor={verticalCompactor}
+          >
+            {viewWidgets.map((widget) => (
+              <div key={widget.id}>
+                <ViewWidgetCard
+                  widget={widget}
+                  onRemove={() => removeWidgetFromView(viewId, widget.id)}
+                />
+              </div>
+            ))}
+          </ResponsiveGridLayout>
+        )}
       </div>
     </div>
   );

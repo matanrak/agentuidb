@@ -95,10 +95,21 @@ export function saveWidgets(widgets: SavedWidget[]): void {
 // Nav Views storage
 const NAV_VIEWS_KEY = "agentuidb-nav-views";
 
+export interface WidgetLayoutItem {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+}
+
 export interface NavView {
   id: string;
   name: string;
   widgetIds: string[];
+  layouts?: Record<string, WidgetLayoutItem[]>;
   created_at: string;
 }
 

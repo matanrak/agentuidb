@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
-import { loadNavViews, saveNavViews, type NavView } from "@/lib/storage";
+import { loadNavViews, saveNavViews, type NavView, type WidgetLayoutItem } from "@/lib/storage";
+import { getDefaultWidgetSize } from "@/lib/widget-sizing";
+import { getSurreal } from "@/lib/surreal";
 
 interface ViewsContextValue {
   views: NavView[];
@@ -9,8 +11,9 @@ interface ViewsContextValue {
   setActiveTab: (tab: string) => void;
   addView: (name: string) => string;
   removeView: (id: string) => void;
-  addWidgetToView: (viewId: string, widgetId: string) => void;
+  addWidgetToView: (viewId: string, widgetId: string, widgetSpec?: unknown) => void;
   removeWidgetFromView: (viewId: string, widgetId: string) => void;
+  updateViewLayouts: (viewId: string, layouts: Record<string, WidgetLayoutItem[]>) => void;
 }
 
 const ViewsContext = createContext<ViewsContextValue | null>(null);
@@ -47,15 +50,35 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
       return next;
     });
     setActiveTab((current) => (current === id ? "widgets" : current));
+
+    const db = getSurreal();
+    if (db) {
+      db.query("DELETE FROM _view_layouts WHERE view_id = $viewId", { viewId: id }).catch(() => {});
+    }
   }, []);
 
-  const addWidgetToView = useCallback((viewId: string, widgetId: string) => {
+  const addWidgetToView = useCallback((viewId: string, widgetId: string, widgetSpec?: unknown) => {
     setViews((prev) => {
-      const next = prev.map((v) =>
-        v.id === viewId && !v.widgetIds.includes(widgetId)
-          ? { ...v, widgetIds: [...v.widgetIds, widgetId] }
-          : v
-      );
+      const next = prev.map((v) => {
+        if (v.id !== viewId || v.widgetIds.includes(widgetId)) return v;
+
+        const newWidgetIds = [...v.widgetIds, widgetId];
+
+        let newLayouts = v.layouts ? { ...v.layouts } : undefined;
+        if (newLayouts) {
+          for (const [bp, items] of Object.entries(newLayouts)) {
+            const maxY = items.reduce((max, item) => Math.max(max, item.y + item.h), 0);
+            const cols = bp === "lg" ? 12 : bp === "md" ? 8 : 4;
+            const size = getDefaultWidgetSize(widgetSpec, cols);
+            newLayouts[bp] = [
+              ...items,
+              { i: widgetId, x: 0, y: maxY, w: size.w, h: size.h, minW: 2, minH: 2 },
+            ];
+          }
+        }
+
+        return { ...v, widgetIds: newWidgetIds, layouts: newLayouts };
+      });
       saveNavViews(next);
       return next;
     });
@@ -63,10 +86,29 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
 
   const removeWidgetFromView = useCallback((viewId: string, widgetId: string) => {
     setViews((prev) => {
+      const next = prev.map((v) => {
+        if (v.id !== viewId) return v;
+
+        const newWidgetIds = v.widgetIds.filter((wid) => wid !== widgetId);
+
+        let newLayouts = v.layouts ? { ...v.layouts } : undefined;
+        if (newLayouts) {
+          for (const [bp, items] of Object.entries(newLayouts)) {
+            newLayouts[bp] = items.filter((item) => item.i !== widgetId);
+          }
+        }
+
+        return { ...v, widgetIds: newWidgetIds, layouts: newLayouts };
+      });
+      saveNavViews(next);
+      return next;
+    });
+  }, []);
+
+  const updateViewLayouts = useCallback((viewId: string, layouts: Record<string, WidgetLayoutItem[]>) => {
+    setViews((prev) => {
       const next = prev.map((v) =>
-        v.id === viewId
-          ? { ...v, widgetIds: v.widgetIds.filter((wid) => wid !== widgetId) }
-          : v
+        v.id === viewId ? { ...v, layouts } : v
       );
       saveNavViews(next);
       return next;
@@ -82,6 +124,7 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
       removeView,
       addWidgetToView,
       removeWidgetFromView,
+      updateViewLayouts,
     }}>
       {children}
     </ViewsContext.Provider>
