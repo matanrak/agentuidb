@@ -63,17 +63,21 @@ async function querySurrealCollection(
   if (filters) {
     let i = 0;
     for (const [field, value] of Object.entries(filters)) {
+      const safeField = field.replace(/[^a-zA-Z0-9_]/g, "");
+      if (!safeField) continue;
       vars[`p${i}`] = value;
-      whereClauses.push(`${field} = $p${i}`);
+      whereClauses.push(`\`${safeField}\` = $p${i}`);
       i++;
     }
   }
 
+  const safeSortBy = (sort_by ?? "created_at").replace(/[^a-zA-Z0-9_]/g, "") || "created_at";
   let query = `SELECT * FROM \`${safeName}\``;
   if (whereClauses.length > 0) {
     query += ` WHERE ${whereClauses.join(" AND ")}`;
   }
-  query += ` ORDER BY ${sort_by ?? "created_at"} ${(sort_order ?? "desc").toUpperCase()}`;
+  const safeSortDir = (sort_order ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
+  query += ` ORDER BY \`${safeSortBy}\` ${safeSortDir}`;
   query += ` LIMIT ${limit ?? 50}`;
 
   const [results] = await db.query<[Record<string, unknown>[]]>(query, vars);

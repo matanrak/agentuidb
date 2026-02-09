@@ -8,7 +8,7 @@ OPTION IMPORT;
 -- TABLE: _collections_meta
 -- ------------------------------
 
-DEFINE TABLE _collections_meta TYPE ANY SCHEMALESS PERMISSIONS NONE;
+DEFINE TABLE _collections_meta TYPE ANY SCHEMALESS PERMISSIONS FULL;
 
 
 
@@ -23,7 +23,7 @@ INSERT [ { created_at: '2026-02-08T14:12:18.210Z', description: 'People met thro
 -- TABLE: contacts
 -- ------------------------------
 
-DEFINE TABLE contacts TYPE ANY SCHEMALESS PERMISSIONS NONE;
+DEFINE TABLE contacts TYPE ANY SCHEMALESS PERMISSIONS FULL;
 
 
 
@@ -38,7 +38,7 @@ INSERT [ { company: 'Linear', context: 'Was introduced to her', created_at: '202
 -- TABLE: expenses
 -- ------------------------------
 
-DEFINE TABLE expenses TYPE ANY SCHEMALESS PERMISSIONS NONE;
+DEFINE TABLE expenses TYPE ANY SCHEMALESS PERMISSIONS FULL;
 
 
 
@@ -53,7 +53,7 @@ INSERT [ { amount: 28, category: 'personal care', created_at: '2026-01-23T09:31:
 -- TABLE: health_metrics
 -- ------------------------------
 
-DEFINE TABLE health_metrics TYPE ANY SCHEMALESS PERMISSIONS NONE;
+DEFINE TABLE health_metrics TYPE ANY SCHEMALESS PERMISSIONS FULL;
 
 
 
@@ -68,7 +68,7 @@ INSERT [ { created_at: '2025-12-25T16:18:00Z', id: health_metrics:demkca1qlv935b
 -- TABLE: meals
 -- ------------------------------
 
-DEFINE TABLE meals TYPE ANY SCHEMALESS PERMISSIONS NONE;
+DEFINE TABLE meals TYPE ANY SCHEMALESS PERMISSIONS FULL;
 
 
 
@@ -83,7 +83,7 @@ INSERT [ { calories: 750, carbs_g: 95, created_at: '2026-01-09T09:46:00Z', fat_g
 -- TABLE: workouts
 -- ------------------------------
 
-DEFINE TABLE workouts TYPE ANY SCHEMALESS PERMISSIONS NONE;
+DEFINE TABLE workouts TYPE ANY SCHEMALESS PERMISSIONS FULL;
 
 
 

@@ -23,9 +23,11 @@ export function registerGetCollectionSchema(server: McpServer): void {
         const db = await getDb();
         let count = 0;
         try {
+          // Use backtick-escaped table name instead of type::table() to avoid SurrealDB v2 IAM issues
+          const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
+          if (!safeName) throw new Error("Invalid collection name");
           const [countResult] = await db.query<[{ count: number }[]]>(
-            `SELECT count() FROM type::table($table) GROUP ALL`,
-            { table: collection }
+            `SELECT count() FROM \`${safeName}\` GROUP ALL`
           );
           count = countResult?.[0]?.count ?? 0;
         } catch {
