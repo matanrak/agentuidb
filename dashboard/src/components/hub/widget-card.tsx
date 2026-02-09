@@ -100,7 +100,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
                         onCheckedChange={() =>
                           inView
                             ? removeWidgetFromView(view.id, widget.id)
-                            : addWidgetToView(view.id, widget.id)
+                            : addWidgetToView(view.id, widget.id, widget.spec)
                         }
                       >
                         {view.name}
@@ -115,7 +115,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
                   const name = prompt("View name:");
                   if (name?.trim()) {
                     const viewId = addView(name.trim());
-                    addWidgetToView(viewId, widget.id);
+                    addWidgetToView(viewId, widget.id, widget.spec);
                   }
                 }}
               >

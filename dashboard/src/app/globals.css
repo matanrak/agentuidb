@@ -226,12 +226,38 @@
 
 /* Widget card hover effect */
 .widget-card-hover {
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .widget-card-hover:hover {
   box-shadow: 0 4px 20px oklch(0 0 0 / 8%);
   border-color: oklch(0 0 0 / 16%);
-  transform: translateY(-1px);
+}
+
+/* react-grid-layout overrides */
+.react-grid-item.react-grid-placeholder {
+  background: oklch(0.57 0.21 46 / 10%);
+  border: 2px dashed oklch(0.57 0.21 46 / 30%);
+  border-radius: 0.75rem;
+  opacity: 1;
+}
+
+.react-grid-item > .react-resizable-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 0.5;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  border-color: oklch(0.57 0.21 46 / 40%);
+}
+
+.react-grid-item.react-draggable-dragging {
+  z-index: 50;
+  box-shadow: 0 8px 32px oklch(0 0 0 / 15%);
+  border-radius: 0.75rem;
 }
 
 /* Drag handle cursor */
