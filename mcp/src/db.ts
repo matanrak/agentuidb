@@ -13,6 +13,7 @@ export async function getDb(): Promise<Surreal> {
   connecting = (async () => {
     const url = process.env.AGENTUIDB_URL;
     if (!url) {
+      connecting = null;
       throw new Error(
         "AGENTUIDB_URL environment variable is required (e.g. http://127.0.0.1:8000)"
       );
@@ -22,12 +23,18 @@ export async function getDb(): Promise<Surreal> {
     const username = process.env.AGENTUIDB_USER ?? "root";
     const password = process.env.AGENTUIDB_PASS ?? "root";
 
-    db = new Surreal();
-    await db.connect(url, {
-      auth: { username, password },
-      namespace: NAMESPACE,
-      database: DATABASE,
-    });
+    const instance = new Surreal();
+    try {
+      await instance.connect(url, {
+        auth: { username, password },
+        namespace: NAMESPACE,
+        database: DATABASE,
+      });
+    } catch (err) {
+      connecting = null;
+      throw err;
+    }
+    db = instance;
     connecting = null;
     return db;
   })();

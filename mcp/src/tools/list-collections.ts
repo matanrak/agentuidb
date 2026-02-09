@@ -1,9 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getDb } from "../db.js";
 import { listCollections } from "../meta.js";
-
-/** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
-const escIdent = (name: string) => name.replace(/`/g, "``");
+import { escIdent } from "../surql.js";
 
 export function registerListCollections(server: McpServer): void {
   server.tool(
