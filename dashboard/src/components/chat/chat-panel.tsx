@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send } from "lucide-react";
+import { ArrowUp, Sparkles, Table, BarChart3, LayoutDashboard } from "lucide-react";
 import { useUIStream, type Spec } from "@json-render/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,10 +18,10 @@ interface Message {
 }
 
 const SUGGESTIONS = [
-  "Show me all my collections",
-  "Show me my recent meals as a table",
-  "Chart my workout calories this month",
-  "Show expenses by category as a bar chart",
+  { text: "Show me all my collections", icon: LayoutDashboard },
+  { text: "Show me my recent meals as a table", icon: Table },
+  { text: "Chart my workout calories this month", icon: BarChart3 },
+  { text: "Show expenses by category as a bar chart", icon: BarChart3 },
 ];
 
 export function ChatPanel() {
@@ -40,8 +40,9 @@ export function ChatPanel() {
 
   // Auto-scroll on new messages
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const viewport = scrollRef.current?.querySelector("[data-slot='scroll-area-viewport']");
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages, spec]);
 
@@ -52,7 +53,7 @@ export function ChatPanel() {
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant" && last.id === "streaming") {
-          return [...prev.slice(0, -1), { ...last, id: crypto.randomUUID(), spec }];
+          return [...prev.slice(0, -1), { ...last, id: Math.random().toString(36).slice(2), spec }];
         }
         return prev;
       });
@@ -69,7 +70,7 @@ export function ChatPanel() {
     // Add user message
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), role: "user", content: msg },
+      { id: Math.random().toString(36).slice(2), role: "user", content: msg },
       { id: "streaming", role: "assistant", content: "", spec: null },
     ]);
 
@@ -101,65 +102,87 @@ export function ChatPanel() {
   const hasApiKey = !!settings.openrouter_api_key;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-dot-grid">
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+      <ScrollArea className="flex-1" ref={scrollRef}>
+        <div className="flex flex-col gap-5 max-w-3xl mx-auto px-4 py-6">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <h2 className="text-xl font-semibold text-muted-foreground">What would you like to see?</h2>
-              <p className="text-sm text-muted-foreground">Ask me to show your data as tables, charts, or dashboards.</p>
-              <div className="flex flex-wrap gap-2 justify-center max-w-md">
+            <div className="flex flex-col items-center justify-center py-24 gap-6">
+              <div className="flex flex-col items-center gap-3">
+                <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 glow-amber">
+                  <Sparkles className="size-5 text-primary" />
+                </div>
+                <h2 className="text-lg font-semibold text-foreground tracking-tight">What would you like to see?</h2>
+                <p className="text-sm text-muted-foreground max-w-xs text-center">
+                  Ask me to visualize your data as tables, charts, or interactive dashboards.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 max-w-lg w-full">
                 {SUGGESTIONS.map((s) => (
-                  <Button key={s} variant="outline" size="sm" onClick={() => handleSend(s)} disabled={!hasApiKey}>
-                    {s}
-                  </Button>
+                  <button
+                    key={s.text}
+                    onClick={() => handleSend(s.text)}
+                    disabled={!hasApiKey}
+                    className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-card hover:border-border transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed group"
+                  >
+                    <s.icon className="size-4 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
+                    <span className="line-clamp-1">{s.text}</span>
+                  </button>
                 ))}
               </div>
               {!hasApiKey && (
-                <p className="text-xs text-destructive">Set your OpenRouter API key in Settings to get started.</p>
+                <p className="text-xs text-destructive/80">Set your OpenRouter API key in Settings to get started.</p>
               )}
             </div>
           )}
 
-          {messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              role={msg.role}
-              content={msg.content}
-              spec={msg.id === "streaming" ? spec : msg.spec}
-              isStreaming={msg.id === "streaming" && isStreaming}
-            />
-          ))}
+          {messages.map((msg, i) => {
+            const precedingUserMsg = msg.role === "assistant"
+              ? messages.slice(0, i).reverse().find((m) => m.role === "user")
+              : undefined;
+            return (
+              <div key={msg.id} className="animate-fade-in-up">
+                <ChatMessage
+                  role={msg.role}
+                  content={msg.content}
+                  spec={msg.id === "streaming" ? spec : msg.spec}
+                  isStreaming={msg.id === "streaming" && isStreaming}
+                  widgetTitle={precedingUserMsg?.content}
+                />
+              </div>
+            );
+          })}
 
           {error && (
-            <div className="text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
-              Error: {error.message}
+            <div className="animate-fade-in-up text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3">
+              {error.message}
             </div>
           )}
         </div>
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t p-4 bg-background">
-        <div className="max-w-3xl mx-auto flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={hasApiKey ? "Ask about your data..." : "Set your OpenRouter API key in Settings first"}
-            disabled={isStreaming || !hasApiKey}
-            className="min-h-[44px] max-h-32 resize-none"
-            rows={1}
-          />
-          <Button
-            onClick={() => handleSend()}
-            disabled={isStreaming || !input.trim() || !hasApiKey}
-            size="icon"
-            className="shrink-0"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+      <div className="p-4 pb-5">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-sm p-2 transition-colors focus-within:border-primary/30 focus-within:bg-card/80">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={hasApiKey ? "Ask about your data..." : "Set your OpenRouter API key in Settings first"}
+              disabled={isStreaming || !hasApiKey}
+              className="min-h-[36px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
+              rows={1}
+            />
+            <Button
+              onClick={() => handleSend()}
+              disabled={isStreaming || !input.trim() || !hasApiKey}
+              size="icon"
+              className="shrink-0 size-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30"
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

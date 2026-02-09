@@ -1,117 +1,42 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, Code, Eye } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { RefreshCw, Code, Eye, Pin } from "lucide-react";
 import { type Spec } from "@json-render/react";
 import { Button } from "@/components/ui/button";
 import { DashboardRenderer } from "@/lib/render/renderer";
-import { getSurreal } from "@/lib/surreal";
+import { useSpecData, extractCollections } from "@/hooks/use-spec-data";
+import { useWidgetHub } from "@/hooks/use-widget-hub";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   spec?: Spec | null;
   isStreaming?: boolean;
+  widgetTitle?: string;
 }
 
-/**
- * Query SurrealDB for a collection.
- */
-async function queryCollection(collection: string, limit = 50): Promise<Record<string, unknown>[]> {
-  const db = getSurreal();
-  if (!db) {
-    console.warn("queryCollection: SurrealDB not connected");
-    return [];
-  }
-
-  const query = `SELECT * FROM type::table($table) ORDER BY created_at DESC LIMIT ${limit}`;
-  const [results] = await db.query<[Record<string, unknown>[]]>(query, { table: collection });
-  return results ?? [];
-}
-
-/**
- * Scan spec elements for dataPath props and extract unique collection names.
- */
-function extractCollections(spec: Spec): string[] {
-  const collections = new Set<string>();
-  const elements = spec.elements || {};
-
-  for (const el of Object.values(elements)) {
-    const element = el as { type: string; props?: Record<string, unknown> };
-    if (element.props?.dataPath) {
-      // dataPath is like "meals" or "meals.data" — take the first segment as collection name
-      const collection = (element.props.dataPath as string).split(".")[0];
-      if (collection) collections.add(collection);
-    }
-  }
-
-  return Array.from(collections);
-}
-
-export function ChatMessage({ role, content, spec, isStreaming }: ChatMessageProps) {
-  const [data, setData] = useState<Record<string, unknown>>({});
-  const [dataVersion, setDataVersion] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: ChatMessageProps) {
+  const { data, setData, dataVersion, isLoading, refresh, handleDataChange } = useSpecData(
+    spec && !isStreaming ? spec : null,
+  );
+  const { startFlyAnimation } = useWidgetHub();
   const [showJson, setShowJson] = useState(false);
-  const loadedRef = useRef(false);
+  const specContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-detect collections from spec and fetch data
-  const loadData = useCallback(async (specToLoad: Spec) => {
-    const collections = extractCollections(specToLoad);
-    if (collections.length === 0) return;
-
-    const newData: Record<string, unknown> = {};
-    for (const collection of collections) {
-      try {
-        const results = await queryCollection(collection);
-        newData[collection] = results;
-      } catch (err) {
-        console.error(`Failed to query ${collection}:`, err);
-      }
-    }
-
-    setData(newData);
-    setDataVersion((v) => v + 1);
-  }, []);
-
-  // Load data when spec finishes streaming
-  useEffect(() => {
-    if (!spec || isStreaming) return;
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-    loadData(spec);
-  }, [spec, isStreaming, loadData]);
-
-  const handleRefresh = useCallback(async () => {
-    if (!spec) return;
-    setIsRefreshing(true);
-    await loadData(spec);
-    setIsRefreshing(false);
-  }, [spec, loadData]);
-
-  const handleDataChange = useCallback((path: string, value: unknown) => {
-    setData((prev) => {
-      const next = { ...prev };
-      const parts = path.split("/");
-      let current: Record<string, unknown> = next;
-      for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i]!;
-        if (!(part in current) || typeof current[part] !== "object") {
-          current[part] = {};
-        }
-        current = current[part] as Record<string, unknown>;
-      }
-      current[parts[parts.length - 1]!] = value;
-      return next;
-    });
-    setDataVersion((v) => v + 1);
-  }, []);
+  const handleAddToHub = useCallback(() => {
+    if (!spec || !specContainerRef.current) return;
+    const rect = specContainerRef.current.getBoundingClientRect();
+    const collections = extractCollections(spec);
+    const title = widgetTitle || "Widget";
+    startFlyAnimation(rect, { title, spec, collections });
+  }, [spec, widgetTitle, startFlyAnimation]);
 
   if (role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2 max-w-[80%]">
-          <p className="text-sm">{content}</p>
+        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%] shadow-sm">
+          <p className="text-sm leading-relaxed">{content}</p>
         </div>
       </div>
     );
@@ -122,35 +47,44 @@ export function ChatMessage({ role, content, spec, isStreaming }: ChatMessagePro
   return (
     <div className="flex flex-col gap-3 max-w-full">
       {content && (
-        <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2 max-w-[80%]">
-          <p className="text-sm">{content}</p>
+        <div className="bg-secondary/80 border border-border/30 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[80%]">
+          <p className="text-sm leading-relaxed">{content}</p>
         </div>
       )}
       {hasElements && (
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="flex justify-end gap-1 mb-2">
+        <div ref={specContainerRef} className="border border-border/50 rounded-xl p-4 bg-card/80 backdrop-blur-sm">
+          <div className="flex justify-end gap-1 mb-3">
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="size-7 rounded-lg text-muted-foreground hover:text-primary"
+              onClick={handleAddToHub}
+              title="Pin to Widget Hub"
+            >
+              <Pin className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
               onClick={() => setShowJson((v) => !v)}
               title={showJson ? "Show rendered UI" : "Show JSON spec"}
             >
-              {showJson ? <Eye className="h-3.5 w-3.5" /> : <Code className="h-3.5 w-3.5" />}
+              {showJson ? <Eye className="size-3.5" /> : <Code className="size-3.5" />}
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
+              className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+              onClick={() => refresh()}
+              disabled={isLoading}
               title="Refresh data"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
           </div>
           {showJson ? (
-            <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-[500px]">
+            <pre className="text-xs font-mono bg-background/50 border border-border/30 rounded-lg p-3 overflow-auto max-h-[500px] text-muted-foreground">
               {JSON.stringify(spec, null, 2)}
             </pre>
           ) : (

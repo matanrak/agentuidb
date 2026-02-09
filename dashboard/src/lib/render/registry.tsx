@@ -78,15 +78,31 @@ async function querySurrealCollection(
 // Chart Data Processing
 // =============================================================================
 
-function isISODate(value: unknown): boolean {
+function isDateValue(value: unknown): boolean {
+  if (value instanceof Date) return !isNaN(value.getTime());
   if (typeof value !== "string") return false;
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value);
+  return /^\d{4}-\d{2}-\d{2}(T|\s)/.test(value);
 }
 
-function formatDateLabel(value: string): string {
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return value;
+function toDate(value: unknown): Date | null {
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+function formatDateLabel(value: unknown): string {
+  const date = toDate(value);
+  if (!date) return String(value ?? "");
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+}
+
+function toDateGroupKey(value: unknown): string {
+  const date = toDate(value);
+  if (!date) return String(value ?? "unknown");
+  return date.toISOString().split("T")[0] ?? String(value);
 }
 
 function processChartData(
@@ -98,14 +114,14 @@ function processChartData(
   if (items.length === 0) return { items: [], valueKey: yKey };
 
   const firstXValue = items[0]?.[xKey];
-  const isDateKey = isISODate(firstXValue);
+  const isDateKey = isDateValue(firstXValue);
 
   if (!aggregate) {
     const formatted = items.map((item) => {
       const xValue = item[xKey];
       return {
         ...item,
-        label: isDateKey && typeof xValue === "string" ? formatDateLabel(xValue) : String(xValue ?? ""),
+        label: isDateKey ? formatDateLabel(xValue) : String(xValue ?? ""),
       };
     });
     return { items: formatted, valueKey: yKey };
@@ -114,8 +130,8 @@ function processChartData(
   const groups = new Map<string, Array<Record<string, unknown>>>();
   for (const item of items) {
     const xValue = item[xKey];
-    const groupKey = isDateKey && typeof xValue === "string"
-      ? (xValue.split("T")[0] ?? xValue)
+    const groupKey = isDateKey
+      ? toDateGroupKey(xValue)
       : String(xValue ?? "unknown");
     const group = groups.get(groupKey) ?? [];
     group.push(item);
