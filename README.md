@@ -2,11 +2,18 @@
 
 # AgentUIDB
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)](docker-compose.yml)
+[![MCP](https://img.shields.io/badge/MCP-compatible-green?logo=anthropic)](https://modelcontextprotocol.io/)
+[![SurrealDB](https://img.shields.io/badge/SurrealDB-powered-purple?logo=surrealdb)](https://surrealdb.com/)
+
 **Talk naturally. Get structured data and dashboards — automatically.**
 
 Every conversation becomes queryable, visual, and persistent.
 
 ![AgentUIDB](docs/hero.png)
+
+![Demo](docs/demo.gif)
 
 </div>
 
