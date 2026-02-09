@@ -16,7 +16,7 @@ export function registerListCollections(server: McpServer): void {
           collections.map(async (col) => {
             let count = 0;
             try {
-              // Use backtick-escaped table name instead of type::table() to avoid SurrealDB v2 IAM issues
+              // Backtick-escaped table name avoids type::table() which fails if the WS connection loses root auth
               const safeName = col.name.replace(/[^a-zA-Z0-9_]/g, "");
               if (!safeName) throw new Error("Invalid collection name");
               const [countResult] = await db.query<[{ count: number }[]]>(

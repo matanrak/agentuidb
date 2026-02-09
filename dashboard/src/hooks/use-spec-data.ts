@@ -10,7 +10,7 @@ async function queryCollection(collection: string, limit = 50): Promise<Record<s
     console.warn("queryCollection: SurrealDB not connected");
     return [];
   }
-  // Use backtick-escaped table name instead of type::table() to avoid SurrealDB v2 IAM issues
+  // Backtick-escaped table name avoids type::table() which fails if the WS connection loses root auth
   const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
   if (!safeName) return [];
   const query = `SELECT * FROM \`${safeName}\` ORDER BY created_at DESC LIMIT ${limit}`;
