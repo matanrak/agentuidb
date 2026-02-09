@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db.js";
 import { getCollectionMeta } from "../meta.js";
+import { escIdent } from "../surql.js";
 
 export function registerGetCollectionSchema(server: McpServer): void {
   server.tool(
@@ -23,9 +24,9 @@ export function registerGetCollectionSchema(server: McpServer): void {
         const db = await getDb();
         let count = 0;
         try {
+          // Collection name is already validated by getCollectionMeta() above.
           const [countResult] = await db.query<[{ count: number }[]]>(
-            `SELECT count() FROM type::table($table) GROUP ALL`,
-            { table: collection }
+            `SELECT count() FROM \`${escIdent(collection)}\` GROUP ALL`
           );
           count = countResult?.[0]?.count ?? 0;
         } catch {

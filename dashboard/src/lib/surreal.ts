@@ -17,9 +17,11 @@ export async function connectSurreal(opts: SurrealConnectOpts): Promise<Surreal>
   }
 
   instance = new Surreal();
-  await instance.connect(opts.url);
-  await instance.signin({ username: opts.username, password: opts.password });
-  await instance.use({ namespace: opts.namespace, database: opts.database });
+  await instance.connect(opts.url, {
+    auth: { username: opts.username, password: opts.password },
+    namespace: opts.namespace,
+    database: opts.database,
+  });
   return instance;
 }
 

@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getDb } from "../db.js";
 import { listCollections } from "../meta.js";
+import { escIdent } from "../surql.js";
 
 export function registerListCollections(server: McpServer): void {
   server.tool(
@@ -16,9 +17,9 @@ export function registerListCollections(server: McpServer): void {
           collections.map(async (col) => {
             let count = 0;
             try {
+              // Collection names come from _collections_meta; escape backticks for safe embedding.
               const [countResult] = await db.query<[{ count: number }[]]>(
-                `SELECT count() FROM type::table($table) GROUP ALL`,
-                { table: col.name }
+                `SELECT count() FROM \`${escIdent(col.name)}\` GROUP ALL`
               );
               count = countResult?.[0]?.count ?? 0;
             } catch {

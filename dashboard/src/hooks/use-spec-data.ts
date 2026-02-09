@@ -11,10 +11,9 @@ async function queryCollection(collection: string, limit = 50): Promise<Record<s
     console.warn("queryCollection: SurrealDB not connected");
     return [];
   }
-  // Use backtick-escaped table name instead of type::table() to avoid SurrealDB v2 IAM issues
-  const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
-  if (!safeName) return [];
-  const query = `SELECT * FROM \`${safeName}\` ORDER BY created_at DESC LIMIT ${limit}`;
+  const esc = (name: string) => name.replace(/`/g, "``");
+  const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+  const query = `SELECT * FROM \`${esc(collection)}\` ORDER BY created_at DESC LIMIT ${safeLimit}`;
   const [results] = await db.query<[Record<string, unknown>[]]>(query);
   return results ?? [];
 }

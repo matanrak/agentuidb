@@ -50,6 +50,39 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
     }
   }, [settings.surrealdb_url, settings.surrealdb_namespace, settings.surrealdb_database, settings.surrealdb_user, settings.surrealdb_pass]);
 
+  // Keep React state in sync with SDK auto-reconnect events
+  useEffect(() => {
+    if (!db) return;
+    const currentDb = db;
+
+    const onConnected = () => {
+      setStatus("connected");
+      setError(null);
+    };
+    const onReconnecting = () => {
+      setStatus("connecting");
+    };
+    const onDisconnected = () => {
+      setStatus("disconnected");
+    };
+    const onError = (err: Error) => {
+      setStatus("error");
+      setError(err.message);
+    };
+
+    currentDb.emitter.subscribe("connected", onConnected);
+    currentDb.emitter.subscribe("reconnecting", onReconnecting);
+    currentDb.emitter.subscribe("disconnected", onDisconnected);
+    currentDb.emitter.subscribe("error", onError);
+
+    return () => {
+      currentDb.emitter.unSubscribe("connected", onConnected);
+      currentDb.emitter.unSubscribe("reconnecting", onReconnecting);
+      currentDb.emitter.unSubscribe("disconnected", onDisconnected);
+      currentDb.emitter.unSubscribe("error", onError);
+    };
+  }, [db]);
+
   useEffect(() => {
     connect();
     return () => {

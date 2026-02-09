@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db.js";
 import { collectionExists } from "../meta.js";
+import { escIdent } from "../surql.js";
 
 export function registerQueryCollection(server: McpServer): void {
   server.tool(
@@ -24,7 +25,7 @@ export function registerQueryCollection(server: McpServer): void {
         }
 
         const sortField = sort_by ?? "created_at";
-        const sortDir = (sort_order ?? "desc").toUpperCase();
+        const sortDir = (sort_order ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
         const maxResults = limit ?? 20;
 
         const vars: Record<string, unknown> = {};
@@ -33,21 +34,24 @@ export function registerQueryCollection(server: McpServer): void {
         if (filters) {
           let i = 0;
           for (const [field, value] of Object.entries(filters)) {
+            if (!field) continue;
             const paramName = `p${i}`;
             vars[paramName] = value;
-            whereClauses.push(`${field} = $${paramName}`);
+            whereClauses.push(`\`${escIdent(field)}\` = $${paramName}`);
             i++;
           }
         }
 
-        let query = `SELECT * FROM type::table($table)`;
-        vars.table = collection;
+        // Collection name is already validated by collectionExists() above.
+        // Escape backticks to safely embed in backtick-delimited identifier.
+        const safeLimit = Math.max(1, Math.min(100, Math.floor(maxResults)));
+        let query = `SELECT * FROM \`${escIdent(collection)}\``;
 
         if (whereClauses.length > 0) {
           query += ` WHERE ${whereClauses.join(" AND ")}`;
         }
 
-        query += ` ORDER BY ${sortField} ${sortDir} LIMIT ${maxResults}`;
+        query += ` ORDER BY \`${escIdent(sortField)}\` ${sortDir} LIMIT ${safeLimit}`;
 
         const db = await getDb();
         const [results] = await db.query<[Record<string, unknown>[]]>(query, vars);
