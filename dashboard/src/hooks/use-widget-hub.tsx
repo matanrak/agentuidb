@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { type Spec } from "@json-render/react";
 import { loadWidgets, saveWidgets, type SavedWidget } from "@/lib/storage";
 
@@ -24,8 +24,12 @@ interface WidgetHubContextValue {
 const WidgetHubContext = createContext<WidgetHubContextValue | null>(null);
 
 export function WidgetHubProvider({ children }: { children: ReactNode }) {
-  const [widgets, setWidgets] = useState<SavedWidget[]>(() => loadWidgets());
+  const [widgets, setWidgets] = useState<SavedWidget[]>([]);
   const [flyingWidget, setFlyingWidget] = useState<FlyingWidget | null>(null);
+
+  useEffect(() => {
+    setWidgets(loadWidgets());
+  }, []);
 
   const persist = useCallback((next: SavedWidget[]) => {
     setWidgets(next);

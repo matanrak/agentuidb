@@ -51,7 +51,11 @@ async function querySurrealCollection(
   const db = getSurreal();
   if (!db) throw new Error("SurrealDB not connected");
 
-  const vars: Record<string, unknown> = { table: collection };
+  // Use backtick-escaped table name instead of type::table() to avoid SurrealDB v2 IAM issues
+  const safeName = collection.replace(/[^a-zA-Z0-9_]/g, "");
+  if (!safeName) throw new Error(`Invalid collection name: ${collection}`);
+
+  const vars: Record<string, unknown> = {};
   const whereClauses: string[] = [];
 
   if (filters) {
@@ -63,7 +67,7 @@ async function querySurrealCollection(
     }
   }
 
-  let query = `SELECT * FROM type::table($table)`;
+  let query = `SELECT * FROM \`${safeName}\``;
   if (whereClauses.length > 0) {
     query += ` WHERE ${whereClauses.join(" AND ")}`;
   }
