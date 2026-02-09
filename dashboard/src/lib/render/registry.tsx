@@ -34,8 +34,10 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
+import { useCallback } from "react";
 import { catalog } from "./catalog";
 import { getSurreal } from "@/lib/surreal";
+import { useEdit } from "./edit-context";
 
 // =============================================================================
 // SurrealDB Query Helper
@@ -349,6 +351,8 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     Table: ({ props }) => {
       const { data } = useData();
       const items = resolveData(data, props.dataPath);
+      const editable = props.editable ?? false;
+      const edit = useEdit();
 
       const columns: ColumnDef<Record<string, unknown>>[] = props.columns.map((col) => ({
         accessorKey: col.key,
@@ -356,8 +360,28 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
         cell: ({ getValue }) => String(getValue() ?? ""),
       }));
 
+      const handleCellEdit = useCallback(
+        (recordId: string, field: string, newValue: string) => {
+          const originalRow = items.find((item) => String(item.id) === recordId);
+          const originalValue = originalRow?.[field];
+          edit.trackEdit(recordId, field, newValue, originalValue);
+        },
+        [edit, items],
+      );
+
       return (
-        <DataTable columns={columns} data={items} emptyMessage={props.emptyMessage ?? undefined} />
+        <DataTable
+          columns={columns}
+          data={items}
+          emptyMessage={props.emptyMessage ?? undefined}
+          editable={editable}
+          onCellEdit={editable ? handleCellEdit : undefined}
+          onRowDelete={editable ? edit.trackDelete : undefined}
+          onRowRestore={editable ? edit.trackRestore : undefined}
+          isRowDeleted={editable ? edit.isDeleted : undefined}
+          isCellEdited={editable ? edit.isEdited : undefined}
+          getEditedValue={editable ? edit.getEditedValue : undefined}
+        />
       );
     },
 

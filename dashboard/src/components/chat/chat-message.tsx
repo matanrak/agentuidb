@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { RefreshCw, Code, Eye, Pin } from "lucide-react";
+import { RefreshCw, Code, Eye, Pin, Check } from "lucide-react";
 import { type Spec } from "@json-render/react";
 import { Button } from "@/components/ui/button";
 import { DashboardRenderer } from "@/lib/render/renderer";
+import { type EditPendingState } from "@/lib/render/edit-context";
 import { useSpecData, extractCollections } from "@/hooks/use-spec-data";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 
@@ -22,6 +23,7 @@ export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: C
   );
   const { startFlyAnimation } = useWidgetHub();
   const [showJson, setShowJson] = useState(false);
+  const [editPending, setEditPending] = useState<EditPendingState | null>(null);
   const specContainerRef = useRef<HTMLDivElement>(null);
 
   const handleAddToHub = useCallback(() => {
@@ -54,6 +56,18 @@ export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: C
       {hasElements && (
         <div ref={specContainerRef} className="border border-border/50 rounded-xl p-4 bg-card/80 backdrop-blur-sm">
           <div className="flex justify-end gap-1 mb-3">
+            {editPending && (
+              <Button
+                size="sm"
+                className="h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5"
+                onClick={() => editPending.save()}
+                disabled={editPending.saving}
+                title="Save changes to database"
+              >
+                <Check className="size-3.5 mr-1" />
+                {editPending.saving ? "Saving..." : `Save (${editPending.count})`}
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -94,6 +108,8 @@ export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: C
               data={data}
               setData={setData}
               onDataChange={handleDataChange}
+              onSaved={refresh}
+              onEditPendingChange={setEditPending}
               loading={isStreaming}
             />
           )}
