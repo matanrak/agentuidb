@@ -11,6 +11,7 @@ import {
 } from "@json-render/react";
 
 import { registry, Fallback, handlers as createHandlers } from "./registry";
+import { EditProvider, type EditPendingState } from "./edit-context";
 
 type SetData = (
   updater: (prev: Record<string, unknown>) => Record<string, unknown>,
@@ -21,6 +22,8 @@ interface DashboardRendererProps {
   data?: Record<string, unknown>;
   setData?: SetData;
   onDataChange?: (path: string, value: unknown) => void;
+  onSaved?: () => void;
+  onEditPendingChange?: (state: EditPendingState | null) => void;
   loading?: boolean;
 }
 
@@ -33,6 +36,8 @@ export function DashboardRenderer({
   data = {},
   setData,
   onDataChange,
+  onSaved,
+  onEditPendingChange,
   loading,
 }: DashboardRendererProps): ReactNode {
   const dataRef = useRef(data);
@@ -55,12 +60,14 @@ export function DashboardRenderer({
     <DataProvider initialData={data} onDataChange={onDataChange}>
       <VisibilityProvider>
         <ActionProvider handlers={actionHandlers}>
-          <Renderer
-            spec={spec}
-            registry={registry}
-            fallback={fallback}
-            loading={loading}
-          />
+          <EditProvider onSaved={onSaved} onPendingChange={onEditPendingChange}>
+            <Renderer
+              spec={spec}
+              registry={registry}
+              fallback={fallback}
+              loading={loading}
+            />
+          </EditProvider>
         </ActionProvider>
       </VisibilityProvider>
     </DataProvider>

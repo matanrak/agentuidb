@@ -157,9 +157,11 @@ export const catalog = defineCatalog(schema, {
           label: z.string(),
         })),
         emptyMessage: z.string().nullable(),
+        editable: z.boolean().nullable(),
       }),
       description:
-        "Sortable data table. dataPath points to an array of objects in the data context (e.g., 'meals'). Click column headers to sort.",
+        "Sortable data table. dataPath points to an array of objects in the data context (e.g., 'meals'). " +
+        "Click column headers to sort. Set editable=true to enable inline cell editing and row deletion with a save button.",
     },
 
     // Charts
