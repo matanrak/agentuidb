@@ -18,7 +18,7 @@ Your job:
 Dashboard structure guidelines:
 - Start with a bold, specific Heading that captures the theme (NOT generic like "Dashboard Overview")
 - Use a Grid of stat Cards at the top showing key metrics (totals, averages, counts)
-- Include BarChart(s) for category comparisons and LineChart(s) for time-based trends
+- Include BarChart(s) for daily/per-period data and category comparisons, LineChart(s) only for long-term continuous trends
 - Add a Table for recent activity or detailed data
 - If there are 3+ collections, use Tabs to organize sections by theme
 - Use aggregate ("sum", "count", "avg") in charts to make data meaningful
@@ -115,8 +115,9 @@ Data loading is automatic — any collection referenced via dataPath on a Table 
 
 **Charts — prefer them! Visualizations are more engaging than raw tables.**
 - Default to including a chart whenever the data has a numeric dimension. Dashboards should feel visual, not like spreadsheets.
-- LineChart is the default for anything with a time dimension — daily calories, spending over time, workout trends. The smooth curve tells a story that a table of numbers never can.
-- BarChart for comparing discrete categories (expenses by type, meals by category, contacts by company).
+- BarChart is the default for discrete per-day or per-period data — daily calories, daily spending, workouts per day. Each bar = one day (or period), making individual values easy to compare.
+- LineChart for continuous trends over longer time ranges where the shape of change matters more than individual values (e.g. weight over months, portfolio value over a year).
+- BarChart also works for comparing discrete categories (expenses by type, meals by category, contacts by company).
 - Always set a clear, specific title — "Daily Calorie Intake" not "Chart".
 - When using time on the x-axis, sort ascending so trends read left-to-right.
 - Use color prop to set chart colors. Pick warm, vibrant tones — e.g. "#f97316" (orange), "#10b981" (emerald), "#6366f1" (indigo), "#ec4899" (pink). Avoid dull grays.
@@ -163,8 +164,8 @@ Data loading is automatic — any collection referenced via dataPath on a Table 
     "dashboard": { "type": "Stack", "props": { "direction": "vertical", "gap": "lg" }, "children": ["title", "subtitle", "trend-card", "meals-card"] },
     "title": { "type": "Heading", "props": { "text": "Calorie Tracking", "level": "h2" }, "children": [] },
     "subtitle": { "type": "Text", "props": { "text": "Your daily nutrition trends", "variant": "muted" }, "children": [] },
-    "trend-card": { "type": "Card", "props": { "title": "Daily Calorie Trend" }, "children": ["trend-chart"] },
-    "trend-chart": { "type": "LineChart", "props": { "dataPath": "meals", "xKey": "created_at", "yKey": "calories", "aggregate": "sum", "color": "#f97316", "height": 300 }, "children": [] },
+    "trend-card": { "type": "Card", "props": { "title": "Daily Calorie Intake" }, "children": ["trend-chart"] },
+    "trend-chart": { "type": "BarChart", "props": { "dataPath": "meals", "xKey": "created_at", "yKey": "calories", "aggregate": "sum", "color": "#f97316", "height": 300 }, "children": [] },
     "meals-card": { "type": "Card", "props": { "title": "Recent Meals" }, "children": ["meals-table"] },
     "meals-table": { "type": "Table", "props": { "dataPath": "meals", "editable": true, "columns": [{ "key": "meal_name", "label": "Meal" }, { "key": "meal_type", "label": "Type" }, { "key": "calories", "label": "Calories" }, { "key": "protein_g", "label": "Protein (g)" }] }, "children": [] }
   }
@@ -172,11 +173,11 @@ Data loading is automatic — any collection referenced via dataPath on a Table 
 \`\`\`
 Note: xKey for time-based charts MUST be "created_at" — that is the date/time field on all collections. Do NOT use "date" or "recorded_at" — those fields don't exist.
 
-**"Show my expenses"** — LineChart of spending over time (xKey="created_at", yKey="amount", aggregate="sum") as the hero. BarChart breaking down by category (xKey="category", yKey="amount", aggregate="sum") below. Then a table.
+**"Show my expenses"** — BarChart of daily spending (xKey="created_at", yKey="amount", aggregate="sum") as the hero. Another BarChart breaking down by category (xKey="category", yKey="amount", aggregate="sum") below. Then a table.
 
 **"Show my contacts"** — No numeric trend, so skip the chart. Just a clean table with name, role, company, context columns inside a Card.
 
-**Key principle for charts:** For "tracking" or "trends" → xKey="created_at". For "breakdown" or "by category" → xKey is the categorical field name.`;
+**Key principle for charts:** For daily tracking data (calories, spending, workouts) → BarChart with xKey="created_at". For long-term continuous trends (weight, portfolio) → LineChart with xKey="created_at". For "breakdown" or "by category" → BarChart with xKey as the categorical field name.`;
 
   // ── Collection Schemas + Sample Data ──
   if (context?.collections) {
