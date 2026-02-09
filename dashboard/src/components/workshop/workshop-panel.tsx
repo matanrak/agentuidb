@@ -11,6 +11,7 @@ import { useSpecData, extractCollections } from "@/hooks/use-spec-data";
 import { useSettings } from "@/hooks/use-settings";
 import { useCollections } from "@/hooks/use-collections";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
+import { usePinSubWidget } from "@/lib/render/sub-widget-pin";
 
 // Rotating prompts the AI picks from to create varied dashboards each time
 const WORKSHOP_PROMPTS = [
@@ -91,6 +92,8 @@ export function WorkshopPanel() {
     const specCollections = extractCollections(generatedSpec);
     startFlyAnimation(rect, { title: "Workshop Dashboard", spec: generatedSpec, collections: specCollections });
   }, [generatedSpec, startFlyAnimation]);
+
+  const handlePinElement = usePinSubWidget(generatedSpec);
 
   const hasApiKey = !!settings.openrouter_api_key;
   const hasCollections = collections.length > 0;
@@ -220,6 +223,8 @@ export function WorkshopPanel() {
                   setData={setData}
                   onDataChange={handleDataChange}
                   loading={isStreaming}
+                  pinnable
+                  onPinElement={handlePinElement}
                 />
               )}
             </div>
