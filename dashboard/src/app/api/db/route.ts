@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ result: true });
       }
       case "ping": {
-        await db.query("SELECT 1");
+        await db.query("RETURN 1");
         return NextResponse.json({ result: true });
       }
       default:
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
         );
     }
   } catch (err) {
+    console.error("[/api/db]", action, err);
     resetServerSurreal();
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
