@@ -105,10 +105,16 @@ export function WidgetHubProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removeWidget = useCallback((id: string) => {
-    setWidgets((prev) => prev.filter((w) => w.id !== id).map((w, i) => ({ ...w, order: i })));
+    const remaining = widgetsRef.current.filter((w) => w.id !== id).map((w, i) => ({ ...w, order: i }));
+    setWidgets(remaining);
 
     if (!id.startsWith("temp_")) {
       dbDelete(id).catch(console.error);
+    }
+    for (const w of remaining) {
+      if (!w.id.startsWith("temp_")) {
+        dbSetOrder(w.id, w.order).catch(console.error);
+      }
     }
   }, []);
 
