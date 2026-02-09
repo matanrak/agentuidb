@@ -43,6 +43,7 @@ export async function getDb(): Promise<Surreal> {
 }
 
 export async function closeDb(): Promise<void> {
+  connecting = null;
   if (db) {
     await db.close();
     db = null;
