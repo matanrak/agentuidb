@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback, forwardRef } from "react";
-import { GripVertical, RefreshCw, X } from "lucide-react";
+import { GripVertical, RefreshCw, X, Check } from "lucide-react";
 import { type Spec } from "@json-render/react";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { Button } from "@/components/ui/button";
 import { DashboardRenderer } from "@/lib/render/renderer";
+import { type EditPendingState } from "@/lib/render/edit-context";
 import { useSpecData } from "@/hooks/use-spec-data";
 import type { SavedWidget } from "@/lib/storage";
 
@@ -24,6 +25,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
     const spec = widget.spec as Spec;
     const { data, setData, dataVersion, isLoading, refresh, handleDataChange } = useSpecData(spec);
     const [confirmRemove, setConfirmRemove] = useState(false);
+    const [editPending, setEditPending] = useState<EditPendingState | null>(null);
 
     const handleRemove = useCallback(() => {
       if (confirmRemove) {
@@ -50,6 +52,18 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
             <GripVertical className="size-3.5" />
           </button>
           <span className="text-xs font-medium text-foreground/80 truncate flex-1">{widget.title}</span>
+          {editPending && (
+            <Button
+              size="sm"
+              className="h-6 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2"
+              onClick={() => editPending.save()}
+              disabled={editPending.saving}
+              title="Save changes to database"
+            >
+              <Check className="size-3 mr-1" />
+              {editPending.saving ? "..." : `Save (${editPending.count})`}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -72,13 +86,15 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
         </div>
 
         {/* Content */}
-        <div className="p-3 overflow-auto max-h-[400px]">
+        <div className="p-3">
           <DashboardRenderer
             key={dataVersion}
             spec={spec}
             data={data}
             setData={setData}
             onDataChange={handleDataChange}
+            onSaved={refresh}
+            onEditPendingChange={setEditPending}
             loading={isLoading}
           />
         </div>

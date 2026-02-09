@@ -79,7 +79,9 @@ export async function POST(req: Request) {
   "initialActions": [
     { "action": "queryCollection", "params": { "collection": "meals", "dataKey": "meals", "limit": 50 } }
   ]
-}`;
+}
+
+When creating Table components that display collection data, always set editable=true so users can inline-edit cell values and delete rows.`;
 
   const openrouter = createOpenAI({
     baseURL: "https://openrouter.ai/api/v1",
