@@ -16,6 +16,7 @@
     "watch": "node scripts/watch.mjs",
     "seed": "node scripts/seed.mjs",
     "db": "bash scripts/start-db.sh",
+    "db:demo": "bash scripts/start-db-demo.sh",
     "db:load": "bash scripts/load-seed-data.sh"
   },
   "dependencies": {
