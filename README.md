@@ -1,62 +1,80 @@
+<div align="center">
+
 # AgentUIDB
 
-Talk to an AI. It remembers everything — structured, queryable, automatic.
+**Talk naturally. Get structured data and dashboards — automatically.**
 
-![AgentUIDB Dashboard](docs/hero.png)
+Every conversation becomes queryable, visual, and persistent.
 
-# How It Works
+![AgentUIDB](docs/hero.png)
 
-## Background Storage
+</div>
 
-You talk naturally. The agent extracts structured data and stores it automatically.
+## Features
 
-> **You say:** "Had sushi for dinner — salmon roll and tuna nigiri"
+- **Chat to dashboard** — Ask a question in plain English, get tables, charts, and full dashboards back
+- **Auto-structuring** — The AI extracts contacts, expenses, meals, workouts, and more from casual conversation
+- **Workshop mode** — Auto-generates multi-tab analytics dashboards from your data, no prompts needed
+- **Widget Hub** — Pin, reorder, and curate your favorite visualizations into a persistent dashboard
+- **Inline editing** — Edit data directly in tables, delete rows, save changes back to the database
+- **MCP server** — Works with Claude Desktop and any MCP-compatible client
 
-```json
-// → meals
-{
-  "meal_name": "Sushi",
-  "calories": 450,
-  "meal_type": "dinner",
-  "tags": ["japanese"]
-}
-```
+## See It In Action
 
-> **You say:** "Met Rachel Kim at the product meetup, she's a PM at Figma"
+<table>
+<tr>
+<td width="50%">
+<strong>Ask anything, get instant views</strong><br>
+<em>"Build me a CRM of everyone I've met"</em>
+<br><br>
+<img src="docs/screenshot-chat-crm.png" alt="Chat CRM" width="100%">
+</td>
+<td width="50%">
+<strong>Auto-generated analytics</strong><br>
+<em>Workshop builds dashboards for you</em>
+<br><br>
+<img src="docs/screenshot-workshop.png" alt="Workshop Dashboard" width="100%">
+</td>
+</tr>
+<tr>
+<td width="50%">
+<strong>Visualize anything with a sentence</strong><br>
+<em>"Chart my expenses by category"</em>
+<br><br>
+<img src="docs/screenshot-expenses.png" alt="Expenses Chart" width="100%">
+</td>
+<td width="50%">
+<strong>Pin and collect your favorites</strong><br>
+<em>Build a personal dashboard over time</em>
+<br><br>
+<img src="docs/screenshot-widget-hub.png" alt="Widget Hub" width="100%">
+</td>
+</tr>
+</table>
 
-```json
-// → contacts
-{
-  "name": "Rachel Kim",
-  "role": "PM",
-  "company": "Figma",
-  "context": "product meetup"
-}
-```
+## How It Works
 
-> **You say:** "Spent $85 on groceries at Trader Joe's"
+You talk naturally. The AI extracts structured data and stores it automatically.
 
-```json
-// → expenses
-{
-  "amount": 85,
-  "category": "groceries",
-  "vendor": "Trader Joe's"
-}
-```
+> **"Met Rachel Kim at the product meetup, she's a PM at Figma"** → `contacts`
+>
+> **"Spent $85 on groceries at Trader Joe's"** → `expenses`
+>
+> **"Morning run, 5k in 24 minutes"** → `workouts`
 
-# Quick Start (Docker)
+Then ask for any view: *"Show me everyone I met last month"*, *"Chart my spending by category"*, *"Build me a fitness dashboard"* — and it renders instantly.
 
-The fastest way to get everything running. Requires [Docker](https://www.docker.com/get-started).
+## Quick Start
+
+Requires [Docker](https://www.docker.com/get-started).
 
 ```bash
-docker compose up -d        # starts DB, MCP server, and Dashboard
+docker compose build         # build images
+docker compose up -d         # starts DB, MCP server, and Dashboard
 npm run docker:seed          # load sample data (optional)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the dashboard.
-
-That's it. Three services running:
+Open [http://localhost:3000](http://localhost:3000). That's it.
 
 | Service   | URL                     | Description                     |
 |-----------|-------------------------|---------------------------------|
@@ -64,35 +82,29 @@ That's it. Three services running:
 | MCP       | http://localhost:3001   | MCP server (Streamable HTTP)    |
 | SurrealDB | http://localhost:8000   | Database                        |
 
-### Port Conflicts
+## MCP Server
 
-If the default ports are in use, override them:
+Works with Claude Desktop and any MCP client. Two transports:
 
+**stdio** (for Claude Desktop):
 ```bash
-DB_PORT=8800 MCP_PORT=3800 DASHBOARD_PORT=3900 docker compose up -d
+node mcp/dist/index.js
 ```
 
-### Docker Commands
-
+**HTTP** (for network access):
 ```bash
-docker compose up -d         # start all services
-docker compose down          # stop all services
-docker compose down -v       # stop and delete data
-docker compose logs -f       # tail logs
-docker compose build         # rebuild images
-npm run docker:seed          # load sample data into DB
+node mcp/dist/http.js       # port 3001, endpoint: POST /mcp
 ```
 
-# Local Development
+<details>
+<summary><strong>Local Development</strong></summary>
 
-For developing without Docker.
-
-## Prerequisites
+### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
 - [SurrealDB](https://surrealdb.com/) CLI (`brew install surrealdb/tap/surreal`)
 
-## Install
+### Install
 
 ```bash
 npm install                  # root deps (scripts)
@@ -100,13 +112,13 @@ cd mcp && npm install        # MCP server deps
 cd ../dashboard && npm install  # dashboard deps
 ```
 
-## Build
+### Build
 
 ```bash
 npm run build                # compiles the MCP server
 ```
 
-## Running the Database
+### Running the Database
 
 ```bash
 npm run db                   # start SurrealDB on http://127.0.0.1:8000
@@ -115,7 +127,7 @@ npm run db:demo              # start + auto-load sample data
 
 Data persists to `.surreal/` (gitignored).
 
-## Web Dashboard
+### Web Dashboard
 
 ```bash
 cd dashboard && npm run dev
@@ -123,56 +135,30 @@ cd dashboard && npm run dev
 
 Opens at [http://localhost:3000](http://localhost:3000).
 
-## Seed Data
-
-Two ways to populate the database:
+### Seed Data
 
 ```bash
 npm run db:load              # import static snapshot (fast, no API key needed)
 npm run seed                 # generate fresh data via AI (needs OPENROUTER_API_KEY)
 ```
 
-## Chat Mode
+### Chat Mode
 
-Interactive CLI where the AI silently stores structured data from your messages:
+Interactive CLI where the AI stores structured data from your messages:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-... AGENTUIDB_URL=http://127.0.0.1:8000 npm run chat
 ```
 
-Commands: `dump` (show stored data), `quit` (exit).
-
-## Terminal Dashboard
-
-Live-refreshing terminal UI showing all collections and recent documents:
-
-```bash
-npm run watch
-```
-
-## Running Tests
+### Running Tests
 
 ```bash
 npm run build && npm run test
 ```
 
-## MCP Server
+</details>
 
-The server supports two transports:
-
-**stdio** (for MCP clients like Claude Desktop):
-```bash
-node mcp/dist/index.js
-```
-
-**HTTP** (for network access, used in Docker):
-```bash
-node mcp/dist/http.js       # listens on port 3001, endpoint: POST /mcp
-```
-
-Set `AGENTUIDB_URL` to tell it where SurrealDB is running.
-
-# Project Structure
+## Project Structure
 
 ```
 ├── mcp/                 # MCP server (TypeScript, Node.js)
@@ -187,3 +173,7 @@ Set `AGENTUIDB_URL` to tell it where SurrealDB is running.
 ├── docker-compose.yml   # Run everything with Docker
 └── package.json         # Root scripts
 ```
+
+## Built With
+
+[Next.js](https://nextjs.org/) · [SurrealDB](https://surrealdb.com/) · [MCP](https://modelcontextprotocol.io/) · [Recharts](https://recharts.org/) · [Tailwind CSS](https://tailwindcss.com/) · [shadcn/ui](https://ui.shadcn.com/)
