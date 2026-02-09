@@ -2,20 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type Spec } from "@json-render/react";
-import { getSurreal } from "@/lib/surreal";
+import { dbQuery } from "@/lib/surreal-client";
 import { useSurreal } from "./use-surreal";
 import { extractTransforms, extractTransformCollections, applyTransforms } from "@/lib/render/transforms";
 
 async function queryCollection(collection: string, limit = 50): Promise<Record<string, unknown>[]> {
-  const db = getSurreal();
-  if (!db) {
-    console.warn("queryCollection: SurrealDB not connected");
-    return [];
-  }
   const esc = (name: string) => name.replace(/`/g, "``");
   const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
   const query = `SELECT * FROM \`${esc(collection)}\` ORDER BY created_at DESC LIMIT ${safeLimit}`;
-  const [results] = await db.query<[Record<string, unknown>[]]>(query);
+  const [results] = await dbQuery<[Record<string, unknown>[]]>(query);
   return results ?? [];
 }
 

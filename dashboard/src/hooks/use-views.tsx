@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { loadNavViews, saveNavViews, type NavView, type WidgetLayoutItem } from "@/lib/storage";
 import { getDefaultWidgetSize } from "@/lib/widget-sizing";
-import { getSurreal } from "@/lib/surreal";
+import { dbQuery } from "@/lib/surreal-client";
 
 interface ViewsContextValue {
   views: NavView[];
@@ -51,10 +51,7 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
     });
     setActiveTab((current) => (current === id ? "widgets" : current));
 
-    const db = getSurreal();
-    if (db) {
-      db.query("DELETE FROM _view_layouts WHERE view_id = $viewId", { viewId: id }).catch(() => {});
-    }
+    dbQuery("DELETE FROM _view_layouts WHERE view_id = $viewId", { viewId: id }).catch(() => {});
   }, []);
 
   const addWidgetToView = useCallback((viewId: string, widgetId: string, widgetSpec?: unknown) => {

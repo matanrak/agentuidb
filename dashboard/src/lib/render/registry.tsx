@@ -41,7 +41,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { useCallback } from "react";
 import { catalog } from "./catalog";
-import { getSurreal } from "@/lib/surreal";
+import { dbQuery } from "@/lib/surreal-client";
 import { useEdit } from "./edit-context";
 
 // =============================================================================
@@ -55,9 +55,6 @@ async function querySurrealCollection(
   sort_order?: string | null,
   limit?: number | null,
 ): Promise<Record<string, unknown>[]> {
-  const db = getSurreal();
-  if (!db) throw new Error("SurrealDB not connected");
-
   /** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
   const esc = (name: string) => name.replace(/`/g, "``");
 
@@ -84,7 +81,7 @@ async function querySurrealCollection(
   const safeLimit = Math.max(1, Math.min(100, Math.floor(limit ?? 50)));
   query += ` LIMIT ${safeLimit}`;
 
-  const [results] = await db.query<[Record<string, unknown>[]]>(query, vars);
+  const [results] = await dbQuery<[Record<string, unknown>[]]>(query, vars);
   return results ?? [];
 }
 
