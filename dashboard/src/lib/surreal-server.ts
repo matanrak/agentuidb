@@ -21,11 +21,9 @@ export async function getServerSurreal(): Promise<Surreal> {
     try {
       const cfg = getConfig();
       const db = new Surreal();
-      await db.connect(cfg.url, {
-        auth: { username: cfg.username, password: cfg.password },
-        namespace: cfg.namespace,
-        database: cfg.database,
-      });
+      await db.connect(`${cfg.url}/rpc`);
+      await db.use({ namespace: cfg.namespace, database: cfg.database });
+      await db.signin({ username: cfg.username, password: cfg.password });
       instance = db;
       return db;
     } finally {
