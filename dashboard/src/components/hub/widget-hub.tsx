@@ -17,7 +17,6 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { AnimatePresence, motion } from "motion/react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 import { SortableWidgetCard } from "./sortable-widget-card";
 
@@ -79,7 +78,7 @@ export function WidgetHub() {
           <span className="text-[10px] text-muted-foreground/50 tabular-nums">{widgets.length}</span>
         </div>
       </div>
-      <ScrollArea className="flex-1">
+      <div className="flex-1 overflow-auto">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -97,6 +96,7 @@ export function WidgetHub() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.25, ease: "easeOut" }}
+                    className=""
                   >
                     <SortableWidgetCard widget={widget} onRemove={removeWidget} />
                   </motion.div>
@@ -105,7 +105,7 @@ export function WidgetHub() {
             </div>
           </SortableContext>
         </DndContext>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
