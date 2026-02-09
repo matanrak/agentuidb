@@ -2,6 +2,8 @@
 
 Talk to an AI. It remembers everything — structured, queryable, automatic.
 
+![AgentUIDB Dashboard](docs/hero.png)
+
 # How It Works
 
 ## Background Storage

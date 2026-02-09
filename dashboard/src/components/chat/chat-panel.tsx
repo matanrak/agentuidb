@@ -82,6 +82,7 @@ export function ChatPanel() {
         name: c.name,
         description: c.description,
         fields: c.fields,
+        sampleDocs: c.sampleDocs,
       }));
     }
 
