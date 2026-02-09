@@ -235,7 +235,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
       );
     },
 
-    Card: ({ props, children }) => (
+    Card: ({ props = {}, children }) => (
       <Card className={props.centered ? "text-center" : ""}>
         {(props.title || props.description) && (
           <CardHeader>
