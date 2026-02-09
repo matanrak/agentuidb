@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSurreal } from "./use-surreal";
+import { dbQuery } from "@/lib/surreal-client";
 
 export interface FieldDefinition {
   name: string;
@@ -22,15 +23,15 @@ export interface CollectionMeta {
 }
 
 export function useCollections() {
-  const { db, status } = useSurreal();
+  const { status } = useSurreal();
   const [collections, setCollections] = useState<CollectionMeta[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!db || status !== "connected") return;
+    if (status !== "connected") return;
     setLoading(true);
     try {
-      const [results] = await db.query<[CollectionMeta[]]>(
+      const [results] = await dbQuery<[CollectionMeta[]]>(
         "SELECT * FROM _collections_meta ORDER BY name ASC"
       );
       const metas = results ?? [];
@@ -40,7 +41,7 @@ export function useCollections() {
         metas.map(async (col) => {
           try {
             const safeName = col.name.replace(/[^a-zA-Z0-9_]/g, "");
-            const [docs] = await db.query<[Record<string, unknown>[]]>(
+            const [docs] = await dbQuery<[Record<string, unknown>[]]>(
               `SELECT * FROM \`${safeName}\` ORDER BY created_at DESC LIMIT 2`
             );
             return { ...col, sampleDocs: docs ?? [] };
@@ -56,7 +57,7 @@ export function useCollections() {
     } finally {
       setLoading(false);
     }
-  }, [db, status]);
+  }, [status]);
 
   useEffect(() => {
     if (status === "connected") {
