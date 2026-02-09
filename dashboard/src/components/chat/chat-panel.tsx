@@ -112,10 +112,10 @@ export function ChatPanel() {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 gap-6">
               <div className="flex flex-col items-center gap-3">
-                <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 glow-amber">
-                  <Sparkles className="size-5 text-primary" />
+                <div className="size-14 rounded-2xl bg-primary/12 flex items-center justify-center mb-2 glow-amber">
+                  <Sparkles className="size-6 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold text-foreground tracking-tight">What would you like to see?</h2>
+                <h2 className="text-xl font-semibold text-foreground">What would you like to see?</h2>
                 <p className="text-sm text-muted-foreground max-w-sm text-center">
                   Ask me to visualize your data as tables, charts, or interactive dashboards.
                 </p>
@@ -132,12 +132,12 @@ export function ChatPanel() {
               )}
 
               <div className="flex flex-col gap-2 max-w-lg w-full">
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS.map((s, i) => (
                   <button
                     key={s.text}
                     onClick={() => handleSend(s.text)}
                     disabled={!hasApiKey}
-                    className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-card hover:border-border transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed group"
+                    className={`flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-card hover:border-border transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed group animate-fade-in-up stagger-${i + 1}`}
                   >
                     <s.icon className="size-3.5 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
                     <span>{s.text}</span>
@@ -178,7 +178,7 @@ export function ChatPanel() {
       {/* Input */}
       <div className="p-4 pb-5">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-sm p-2 transition-colors focus-within:border-primary/30 focus-within:bg-card/80">
+          <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-sm p-2 transition-all focus-within:border-primary/50 focus-within:bg-card/80 focus-within:shadow-[0_0_0_3px_oklch(0.57_0.21_46/8%)]">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

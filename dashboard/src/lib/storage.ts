@@ -91,3 +91,33 @@ export function saveWidgets(widgets: SavedWidget[]): void {
     console.error("Failed to save widgets — localStorage may be full");
   }
 }
+
+// Nav Views storage
+const NAV_VIEWS_KEY = "agentuidb-nav-views";
+
+export interface NavView {
+  id: string;
+  name: string;
+  widgetIds: string[];
+  created_at: string;
+}
+
+export function loadNavViews(): NavView[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(NAV_VIEWS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function saveNavViews(views: NavView[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(NAV_VIEWS_KEY, JSON.stringify(views));
+  } catch {
+    console.error("Failed to save nav views — localStorage may be full");
+  }
+}

@@ -166,13 +166,18 @@ export function WorkshopPanel() {
         <div className="max-w-3xl mx-auto px-4 py-6">
           {/* Loading state */}
           {isStreaming && !activeSpec && (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="size-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Wand2 className="size-4 text-primary animate-pulse" />
+            <div className="flex flex-col items-center justify-center py-20 gap-6">
+              <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center animate-pulse-glow">
+                <Wand2 className="size-6 text-primary" />
               </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <p className="text-sm font-medium text-foreground">Crafting your dashboard...</p>
-                <p className="text-xs text-muted-foreground">Analyzing collections and finding insights</p>
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-lg font-medium text-foreground">Crafting your dashboard</p>
+                <p className="text-sm text-muted-foreground">Analyzing collections and finding insights</p>
+              </div>
+              <div className="w-full max-w-sm space-y-3 mt-2">
+                <div className="h-2 rounded-full animate-shimmer" />
+                <div className="h-2 rounded-full animate-shimmer" style={{ animationDelay: "0.3s" }} />
+                <div className="h-2 rounded-full animate-shimmer w-2/3" style={{ animationDelay: "0.6s" }} />
               </div>
             </div>
           )}

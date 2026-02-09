@@ -20,7 +20,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 import { SortableWidgetCard } from "./sortable-widget-card";
 
-export function WidgetHub() {
+export function WidgetHub({ title }: { title?: string }) {
   const { widgets, removeWidget, reorderWidgets } = useWidgetHub();
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -55,14 +55,14 @@ export function WidgetHub() {
 
   if (widgets.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 bg-dot-grid-subtle">
-        <div className="size-12 rounded-2xl bg-primary/8 flex items-center justify-center">
-          <LayoutGrid className="size-5 text-primary/60" />
+      <div className="flex flex-col items-center justify-center h-full gap-5 empty-state-glow">
+        <div className="size-14 rounded-2xl bg-primary/8 flex items-center justify-center">
+          <LayoutGrid className="size-6 text-primary/50" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-muted-foreground/80">Widget Hub</p>
-          <p className="text-xs text-muted-foreground/50 mt-1 max-w-48">
-            Pin widgets from chat to build your dashboard
+          <p className="text-base font-medium text-foreground/70">Widget Hub</p>
+          <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-52 leading-relaxed">
+            Pin widgets from chat or the workshop to build your dashboard
           </p>
         </div>
       </div>
@@ -74,7 +74,7 @@ export function WidgetHub() {
       <div className="px-4 py-3 border-b border-border/30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <LayoutGrid className="size-3.5 text-primary/60" />
-          <span className="text-xs font-medium text-foreground/70">Widget Hub</span>
+          <span className="text-xs font-medium text-foreground/70">{title ?? "Widget Hub"}</span>
           <span className="text-[10px] text-muted-foreground/50 tabular-nums">{widgets.length}</span>
         </div>
       </div>

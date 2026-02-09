@@ -62,7 +62,7 @@ export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: C
             {editPending && (
               <Button
                 size="sm"
-                className="h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5"
+                className="h-7 rounded-lg bg-success hover:bg-success/90 text-white text-xs px-2.5"
                 onClick={() => editPending.save()}
                 disabled={editPending.saving}
                 title="Save changes to database"

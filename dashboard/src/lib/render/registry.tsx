@@ -277,14 +277,14 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
       // Map success/warning to custom styles since shadcn Badge doesn't have these natively
       if (variant === "success") {
         return (
-          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-success/10 text-success border-success/20">
             {props.text}
           </span>
         );
       }
       if (variant === "warning") {
         return (
-          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-warning/10 text-warning border-warning/20">
             {props.text}
           </span>
         );
