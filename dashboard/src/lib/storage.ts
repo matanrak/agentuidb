@@ -59,3 +59,35 @@ export function saveSavedViews(views: SavedView[]): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(views));
 }
+
+// Widget Hub storage
+const WIDGETS_KEY = "agentuidb-hub-widgets";
+
+export interface SavedWidget {
+  id: string;
+  title: string;
+  spec: unknown;
+  collections: string[];
+  order: number;
+  created_at: string;
+}
+
+export function loadWidgets(): SavedWidget[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(WIDGETS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function saveWidgets(widgets: SavedWidget[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(WIDGETS_KEY, JSON.stringify(widgets));
+  } catch {
+    console.error("Failed to save widgets — localStorage may be full");
+  }
+}
