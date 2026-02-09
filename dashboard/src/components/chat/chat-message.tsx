@@ -8,6 +8,7 @@ import { DashboardRenderer } from "@/lib/render/renderer";
 import { type EditPendingState } from "@/lib/render/edit-context";
 import { useSpecData, extractCollections } from "@/hooks/use-spec-data";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
+import { usePinSubWidget } from "@/lib/render/sub-widget-pin";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -33,6 +34,8 @@ export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: C
     const title = widgetTitle || "Widget";
     startFlyAnimation(rect, { title, spec, collections });
   }, [spec, widgetTitle, startFlyAnimation]);
+
+  const handlePinElement = usePinSubWidget(spec ?? null);
 
   if (role === "user") {
     return (
@@ -111,6 +114,8 @@ export function ChatMessage({ role, content, spec, isStreaming, widgetTitle }: C
               onSaved={refresh}
               onEditPendingChange={setEditPending}
               loading={isStreaming}
+              pinnable
+              onPinElement={handlePinElement}
             />
           )}
         </div>

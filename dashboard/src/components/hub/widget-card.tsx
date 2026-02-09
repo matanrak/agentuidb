@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, forwardRef } from "react";
+import { useState, useCallback, useMemo, forwardRef } from "react";
 import { GripVertical, RefreshCw, X, Check, FolderPlus, Plus } from "lucide-react";
 import { type Spec } from "@json-render/react";
 import type { DraggableAttributes } from "@dnd-kit/core";
@@ -18,6 +18,7 @@ import { DashboardRenderer } from "@/lib/render/renderer";
 import { type EditPendingState } from "@/lib/render/edit-context";
 import { useSpecData } from "@/hooks/use-spec-data";
 import { useViews } from "@/hooks/use-views";
+import { collectPinableKeys, usePinSubWidget } from "@/lib/render/sub-widget-pin";
 import type { SavedWidget } from "@/lib/storage";
 
 interface WidgetCardProps {
@@ -36,6 +37,8 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
     const { views, addView, addWidgetToView, removeWidgetFromView } = useViews();
     const [confirmRemove, setConfirmRemove] = useState(false);
     const [editPending, setEditPending] = useState<EditPendingState | null>(null);
+    const hasPinableChildren = useMemo(() => collectPinableKeys(spec).size > 0, [spec]);
+    const handlePinElement = usePinSubWidget(spec);
 
     const handleRemove = useCallback(() => {
       if (confirmRemove) {
@@ -153,6 +156,8 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
             onSaved={refresh}
             onEditPendingChange={setEditPending}
             loading={isLoading}
+            pinnable={hasPinableChildren}
+            onPinElement={hasPinableChildren ? handlePinElement : undefined}
           />
         </div>
       </div>
