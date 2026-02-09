@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type Spec } from "@json-render/react";
 import { getSurreal } from "@/lib/surreal";
+import { useSurreal } from "./use-surreal";
 
 async function queryCollection(collection: string, limit = 50): Promise<Record<string, unknown>[]> {
   const db = getSurreal();
@@ -32,6 +33,7 @@ export function extractCollections(spec: Spec): string[] {
 }
 
 export function useSpecData(spec: Spec | null, options?: { autoLoad?: boolean }) {
+  const { status } = useSurreal();
   const [data, setData] = useState<Record<string, unknown>>({});
   const [dataVersion, setDataVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,12 +59,20 @@ export function useSpecData(spec: Spec | null, options?: { autoLoad?: boolean })
     setIsLoading(false);
   }, []);
 
+  // Reset when DB disconnects so we retry on reconnect
   useEffect(() => {
+    if (status !== "connected") {
+      loadedRef.current = false;
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "connected") return;
     if (!spec || !autoLoad) return;
     if (loadedRef.current) return;
     loadedRef.current = true;
     loadData(spec);
-  }, [spec, autoLoad, loadData]);
+  }, [spec, autoLoad, loadData, status]);
 
   const refresh = useCallback(async () => {
     if (!spec) return;
