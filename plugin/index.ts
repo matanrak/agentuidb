@@ -37,7 +37,7 @@ const agentuidbPlugin = {
   id: "agentuidb",
   name: "AgentUIDB",
   description:
-    "Structured data storage backed by embedded SurrealDB — silently extracts and persists structured data from conversations",
+    "Structured data storage backed by embedded SQLite — silently extracts and persists structured data from conversations",
 
   register(api: OpenClawPluginApi) {
     api.logger.info("[agentuidb] Registering tools");

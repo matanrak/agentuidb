@@ -42,14 +42,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useCallback } from "react";
 import { buildCollectionQuery } from "@agentuidb/core/query";
 import { catalog } from "./catalog";
-import { dbQuery } from "@/lib/surreal-client";
+import { dbQuery } from "@/lib/db-client";
 import { useEdit } from "./edit-context";
 
 // =============================================================================
-// SurrealDB Query Helper
+// DB Query Helper
 // =============================================================================
 
-async function querySurrealCollection(
+async function queryDbCollection(
   collection: string,
   filters?: Record<string, unknown> | null,
   sort_by?: string | null,
@@ -709,7 +709,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     queryCollection: async (params, setData) => {
       if (!params?.collection || !params?.dataKey) return;
       try {
-        const results = await querySurrealCollection(
+        const results = await queryDbCollection(
           params.collection as string,
           params.filters as Record<string, unknown> | null,
           params.sort_by as string | null,
@@ -725,7 +725,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     refreshData: async (params, setData) => {
       if (!params?.collection || !params?.dataKey) return;
       try {
-        const results = await querySurrealCollection(
+        const results = await queryDbCollection(
           params.collection as string,
           null,
           null,

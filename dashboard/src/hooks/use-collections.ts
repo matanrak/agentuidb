@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import type { FieldDefinition, CollectionMeta } from "@agentuidb/core/types";
 import { escIdent } from "@agentuidb/core/query";
-import { useSurreal } from "./use-surreal";
-import { dbQuery } from "@/lib/surreal-client";
+import { useDb } from "./use-db";
+import { dbQuery } from "@/lib/db-client";
 
 export type { FieldDefinition, CollectionMeta };
 
@@ -13,7 +13,7 @@ export type CollectionMetaWithSamples = CollectionMeta & {
 };
 
 export function useCollections() {
-  const { status } = useSurreal();
+  const { status } = useDb();
   const [collections, setCollections] = useState<CollectionMetaWithSamples[]>([]);
   const [loading, setLoading] = useState(false);
 

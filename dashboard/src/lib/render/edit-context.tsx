@@ -8,7 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { dbMerge, dbDelete } from "@/lib/surreal-client";
+import { dbMerge, dbDelete } from "@/lib/db-client";
 
 // -----------------------------------------------------------------------------
 // Types
@@ -42,7 +42,7 @@ export function useEdit(): EditContextValue {
 }
 
 // -----------------------------------------------------------------------------
-// Smart type coercion: preserve numbers so SurrealDB int/float fields stay correct
+// Smart type coercion: preserve numbers so int/float fields stay correct
 // -----------------------------------------------------------------------------
 
 function coerceValue(newValue: unknown, originalValue: unknown): unknown {

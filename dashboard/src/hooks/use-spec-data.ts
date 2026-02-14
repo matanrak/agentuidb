@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type Spec } from "@json-render/react";
 import { buildCollectionQuery } from "@agentuidb/core/query";
-import { dbQuery } from "@/lib/surreal-client";
-import { useSurreal } from "./use-surreal";
+import { dbQuery } from "@/lib/db-client";
+import { useDb } from "./use-db";
 import { extractTransforms, extractTransformCollections, applyTransforms } from "@/lib/render/transforms";
 
 async function queryCollection(collection: string, limit = 50): Promise<Record<string, unknown>[]> {
@@ -37,7 +37,7 @@ export function extractCollections(spec: Spec): string[] {
 }
 
 export function useSpecData(spec: Spec | null, options?: { autoLoad?: boolean }) {
-  const { status } = useSurreal();
+  const { status } = useDb();
   const [data, setData] = useState<Record<string, unknown>>({});
   const [dataVersion, setDataVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(false);

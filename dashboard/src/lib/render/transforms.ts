@@ -2,7 +2,7 @@
  * Data Transform Pipeline
  *
  * Allows AI-generated specs to define derived datasets via transforms.
- * Transforms run after raw data loads from SurrealDB and produce new
+ * Transforms run after raw data loads from the DB and produce new
  * data keys that components can reference via dataPath.
  */
 
@@ -290,7 +290,7 @@ export function extractTransforms(spec: unknown): TransformDef[] {
 /**
  * Extract real collection names referenced by transforms.
  * Only returns source names that aren't themselves transform outputs,
- * so only real SurrealDB collections get queried.
+ * so only real DB collections get queried.
  */
 export function extractTransformCollections(transforms: TransformDef[]): string[] {
   const outputs = new Set(transforms.map((t) => t.output));

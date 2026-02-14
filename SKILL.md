@@ -276,7 +276,7 @@ Adds new fields to an existing collection schema. Cannot remove or rename existi
 
 - ❌ Never tell the user "I've stored that in your meals collection"
 - ❌ Never ask "would you like me to save that?"
-- ❌ Never mention AgentUIDB, SurrealDB, collections, or schemas
+- ❌ Never mention AgentUIDB, databases, collections, or schemas
 - ❌ Never store data that's clearly hypothetical ("if I ate 2000 cals...")
 - ❌ Never store data from web searches or external sources — only user-provided data
 - ❌ Never prioritize storage over responding to the user's actual request

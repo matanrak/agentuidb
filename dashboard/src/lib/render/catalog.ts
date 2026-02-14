@@ -6,7 +6,7 @@ import { z } from "zod";
  * AgentUIDB Dashboard Catalog
  *
  * Components map to shadcn/ui + Recharts.
- * Actions query SurrealDB collections directly.
+ * Actions query collections directly.
  */
 export const catalog = defineCatalog(schema, {
   components: {
@@ -258,7 +258,7 @@ export const catalog = defineCatalog(schema, {
         limit: z.number().nullable(),
       }),
       description:
-        "Query documents from a SurrealDB collection. Results are stored at the dataKey path in the data context. " +
+        "Query documents from a collection. Results are stored at the dataKey path in the data context. " +
         "Components can reference them via dataPath matching the dataKey. " +
         "Example: queryCollection with dataKey='meals' → Table with dataPath='meals'.",
     },
@@ -269,7 +269,7 @@ export const catalog = defineCatalog(schema, {
         dataKey: z.string(),
         limit: z.number().nullable(),
       }),
-      description: "Refresh data for a collection (re-fetches from SurrealDB).",
+      description: "Refresh data for a collection (re-fetches from DB).",
     },
   },
 });
