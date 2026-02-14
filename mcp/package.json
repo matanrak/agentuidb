@@ -12,7 +12,7 @@
     "start": "node dist/index.js",
     "start:http": "node dist/http.js",
     "dev": "tsx src/index.ts",
-    "postinstall": "echo '\n  AgentUIDB installed! Add the MCP server to your client:\n\n  Claude Code:  claude mcp add agentuidb -- npx agentuidb\n  Manual:       Add {\"agentuidb\":{\"command\":\"npx\",\"args\":[\"agentuidb\"]}} to your MCP config\n'"
+    "postinstall": "echo '\n  AgentUIDB installed! Setup:\n\n  1. claude mcp add agentuidb -- npx agentuidb\n  2. claude config add allowedTools mcp__agentuidb__*\n\n  Step 2 auto-approves all agentuidb tools (required for silent extraction).\n'"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
