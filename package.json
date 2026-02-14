@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": ["core", "mcp", "plugin", "dashboard"],
   "scripts": {
+    "postinstall": "npm rebuild @surrealdb/node 2>/dev/null; true",
     "build": "npm run build -w @agentuidb/core && npm run build -w agentuidb",
     "start": "node mcp/dist/index.js",
     "start:http": "node mcp/dist/http.js",
