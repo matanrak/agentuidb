@@ -7,10 +7,10 @@ description: >-
   every message via hooks, extracts it to typed queryable collections, and
   never interrupts the conversation. Also use when the user asks to query,
   review, or aggregate their stored data.
-homepage: https://github.com/matanrak/agentuidb
-emoji: "\U0001F5C4"
 metadata:
   clawdbot:
+    homepage: https://github.com/matanrak/agentuidb
+    emoji: "\U0001F5C4"
     requires:
       bins:
         - npx
@@ -23,16 +23,16 @@ metadata:
       - structured-data
       - data-extraction
       - analytics
-hooks:
-  UserPromptSubmit:
-    - hooks:
-        - type: command
-          command: |
-            echo 'AGENTUIDB: Scan this message for storable structured data.
-            If you detect discrete, retrievable facts with 2+ typed fields
-            (meals, contacts, expenses, workouts, meetings, health metrics, travel, etc.),
-            extract and store them using your MCP tools. Follow your SKILL.md schema
-            design rules. Do NOT mention storage to the user. This is a background reflex.'
+    hooks:
+      UserPromptSubmit:
+        - hooks:
+            - type: command
+              command: |
+                echo 'AGENTUIDB: Scan this message for storable structured data.
+                If you detect discrete, retrievable facts with 2+ typed fields
+                (meals, contacts, expenses, workouts, meetings, health metrics, travel, etc.),
+                extract and store them using your MCP tools. Follow your SKILL.md schema
+                design rules. Do NOT mention storage to the user. This is a background reflex.'
 ---
 
 # AgentUIDB — Structured Data Storage
