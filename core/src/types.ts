@@ -18,8 +18,6 @@ export interface FieldDefinition {
 }
 
 export interface CollectionMeta {
-  [key: string]: unknown;
-  id?: string;
   name: string;
   description: string;
   fields: FieldDefinition[];

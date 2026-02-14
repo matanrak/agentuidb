@@ -115,16 +115,11 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
         try {
-          const [updated] = await dbQuery<[Array<unknown>]>(
-            "UPDATE _view_layouts SET layouts = $layouts, updated_at = time::now() WHERE view_id = $viewId",
+          await dbQuery(
+            `INSERT INTO _view_layouts (view_id, layouts) VALUES ($viewId, $layouts)
+             ON CONFLICT(view_id) DO UPDATE SET layouts = excluded.layouts, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
             { viewId, layouts: newLayouts },
           );
-          if (!updated || (Array.isArray(updated) && updated.length === 0)) {
-            await dbQuery(
-              "CREATE _view_layouts SET view_id = $viewId, layouts = $layouts, created_at = time::now(), updated_at = time::now()",
-              { viewId, layouts: newLayouts },
-            );
-          }
         } catch (err) {
           console.error("Failed to save layout to SurrealDB:", err);
         }

@@ -10,4 +10,4 @@ export {
   updateCollectionSchema,
 } from "./handlers.js";
 export type { FieldType, FieldDefinition, CollectionMeta } from "./types.js";
-export { escIdent, buildCollectionQuery } from "./surql.js";
+export { escIdent, buildCollectionQuery } from "./sql.js";

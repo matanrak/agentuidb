@@ -1,14 +1,9 @@
-import Surreal from "surrealdb";
+import Database from "better-sqlite3";
 import { homedir } from "node:os";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 interface Settings {
-  url?: string | null;
-  user?: string;
-  pass?: string;
-  namespace?: string;
-  database?: string;
   dataDir?: string;
 }
 
@@ -25,61 +20,44 @@ function loadSettings(): Settings {
   }
 }
 
-function getConfig() {
-  const settings = loadSettings();
-  return {
-    url: process.env.AGENTUIDB_URL ?? settings.url ?? null,
-    user: process.env.AGENTUIDB_USER ?? settings.user ?? "root",
-    pass: process.env.AGENTUIDB_PASS ?? settings.pass ?? "root",
-    namespace: process.env.AGENTUIDB_NS ?? settings.namespace ?? "agentuidb",
-    database: process.env.AGENTUIDB_DB ?? settings.database ?? "default",
-    dataDir: process.env.AGENTUIDB_DATA_DIR ?? settings.dataDir ?? getSettingsDir(),
-  };
-}
+let db: Database.Database | null = null;
 
-let db: Surreal | null = null;
-let connecting: Promise<Surreal> | null = null;
-
-async function connectEmbedded(cfg: ReturnType<typeof getConfig>): Promise<Surreal> {
-  const { surrealdbNodeEngines } = await import("@surrealdb/node");
-  mkdirSync(cfg.dataDir, { recursive: true });
-  const dataPath = resolve(cfg.dataDir, "data.db");
-  const instance = new Surreal({ engines: surrealdbNodeEngines() });
-  await instance.connect(`surrealkv://${dataPath}`);
-  await instance.use({ namespace: cfg.namespace, database: cfg.database });
-  return instance;
-}
-
-async function connectHttp(cfg: ReturnType<typeof getConfig>): Promise<Surreal> {
-  const instance = new Surreal();
-  await instance.connect(`${cfg.url}/rpc`);
-  await instance.use({ namespace: cfg.namespace, database: cfg.database });
-  await instance.signin({ username: cfg.user, password: cfg.pass });
-  return instance;
-}
-
-export async function getDb(): Promise<Surreal> {
+export function getDb(): Database.Database {
   if (db) return db;
-  if (connecting) return connecting;
 
-  connecting = (async () => {
-    const cfg = getConfig();
-    try {
-      const instance = cfg.url ? await connectHttp(cfg) : await connectEmbedded(cfg);
-      db = instance;
-      return db;
-    } finally {
-      connecting = null;
-    }
-  })();
+  const settings = loadSettings();
+  const dataDir = settings.dataDir ?? getSettingsDir();
+  mkdirSync(dataDir, { recursive: true });
+  const dataPath = resolve(dataDir, "agentuidb.sqlite");
 
-  return connecting;
+  db = new Database(dataPath);
+  db.pragma("journal_mode = WAL");
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _collections_meta (
+      name        TEXT PRIMARY KEY,
+      description TEXT NOT NULL,
+      fields      TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _view_layouts (
+      view_id    TEXT PRIMARY KEY,
+      layouts    TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )
+  `);
+
+  return db;
 }
 
-export async function closeDb(): Promise<void> {
-  connecting = null;
+export function closeDb(): void {
   if (db) {
-    await db.close();
+    db.close();
     db = null;
   }
 }
