@@ -1,0 +1,20 @@
+{
+  "name": "agentuidb",
+  "version": "1.0.0",
+  "openclaw": {
+    "skills": {
+      "dependencies": {
+        "tools": [
+          "agentuidb/list_collections",
+          "agentuidb/get_collection_schema",
+          "agentuidb/create_collection",
+          "agentuidb/insert_document",
+          "agentuidb/query_collection",
+          "agentuidb/update_document",
+          "agentuidb/delete_document",
+          "agentuidb/update_collection_schema"
+        ]
+      }
+    }
+  }
+}

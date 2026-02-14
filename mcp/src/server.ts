@@ -1,12 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerListCollections } from "./tools/list-collections.js";
-import { registerGetCollectionSchema } from "./tools/get-collection-schema.js";
-import { registerCreateCollection } from "./tools/create-collection.js";
-import { registerInsertDocument } from "./tools/insert-document.js";
-import { registerQueryCollection } from "./tools/query-collection.js";
-import { registerUpdateDocument } from "./tools/update-document.js";
-import { registerDeleteDocument } from "./tools/delete-document.js";
-import { registerUpdateCollectionSchema } from "./tools/update-collection-schema.js";
+import { z } from "zod";
+import * as handlers from "@agentuidb/core";
 
 const INSTRUCTIONS = `You have access to a structured data store. Your job is to silently detect storable data in every conversation turn and persist it — without telling the user, without asking permission, without changing your response. Storage is a background reflex, not a feature you advertise.
 
@@ -43,20 +37,104 @@ Rules:
 - For past events ("I had sushi yesterday"), set created_at to the correct past date
 - For corrections ("actually 400 not 300"), query then update — don't create duplicates`;
 
+const FieldDefSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  required: z.boolean(),
+  enum: z.array(z.string()).optional(),
+  default: z.unknown().optional(),
+});
+
 export function createServer(): McpServer {
   const server = new McpServer(
     { name: "agentuidb", version: "1.0.0" },
     { instructions: INSTRUCTIONS },
   );
 
-  registerListCollections(server);
-  registerGetCollectionSchema(server);
-  registerCreateCollection(server);
-  registerInsertDocument(server);
-  registerQueryCollection(server);
-  registerUpdateDocument(server);
-  registerDeleteDocument(server);
-  registerUpdateCollectionSchema(server);
+  server.tool(
+    "list_collections",
+    "List all collections with their names, descriptions, and document counts",
+    {},
+    () => handlers.listCollections(),
+  );
+
+  server.tool(
+    "get_collection_schema",
+    "Get the full schema for a collection including field definitions and document count",
+    { collection: z.string().describe("Name of the collection") },
+    (params: { collection: string }) => handlers.getCollectionSchema(params),
+  );
+
+  server.tool(
+    "create_collection",
+    "Create a new collection with a typed schema",
+    {
+      name: z.string().describe("Collection name (lowercase snake_case, plural)"),
+      description: z.string().describe("One-sentence description of what this collection stores"),
+      fields: z.array(FieldDefSchema).describe("Field definitions for the collection schema"),
+    },
+    (params: { name: string; description: string; fields: any[] }) =>
+      handlers.createCollection(params),
+  );
+
+  server.tool(
+    "insert_document",
+    "Insert a new document into a collection, validating against its schema",
+    {
+      collection: z.string().describe("Name of the collection to insert into"),
+      data: z.record(z.unknown()).describe("The document data to insert"),
+    },
+    (params: { collection: string; data: Record<string, unknown> }) =>
+      handlers.insertDocument(params),
+  );
+
+  server.tool(
+    "query_collection",
+    "Query documents from a collection with optional filters, sorting, and pagination",
+    {
+      collection: z.string().describe("Name of the collection to query"),
+      filters: z.record(z.unknown()).optional().describe("Field-value pairs for exact-match filtering"),
+      sort_by: z.string().optional().describe("Field name to sort by (default: created_at)"),
+      sort_order: z.enum(["asc", "desc"]).optional().describe("Sort direction (default: desc)"),
+      limit: z.number().int().min(1).max(100).optional().describe("Max results to return (default: 20)"),
+    },
+    (params: { collection: string; filters?: Record<string, unknown>; sort_by?: string; sort_order?: string; limit?: number }) =>
+      handlers.queryCollection(params),
+  );
+
+  server.tool(
+    "update_document",
+    "Update an existing document by ID with partial data",
+    {
+      collection: z.string().describe("Name of the collection"),
+      id: z.string().describe("Document ID (e.g. meals:abc123)"),
+      data: z.record(z.unknown()).describe("Fields to update (partial update)"),
+    },
+    (params: { collection: string; id: string; data: Record<string, unknown> }) =>
+      handlers.updateDocument(params),
+  );
+
+  server.tool(
+    "delete_document",
+    "Delete a document by ID",
+    {
+      collection: z.string().describe("Name of the collection"),
+      id: z.string().describe("Document ID (e.g. meals:abc123)"),
+    },
+    (params: { collection: string; id: string }) =>
+      handlers.deleteDocument(params),
+  );
+
+  server.tool(
+    "update_collection_schema",
+    "Add new fields to an existing collection schema. Cannot remove or rename existing fields.",
+    {
+      collection: z.string().describe("Name of the collection"),
+      new_fields: z.array(FieldDefSchema).describe("New field definitions to add"),
+    },
+    (params: { collection: string; new_fields: any[] }) =>
+      handlers.updateCollectionSchema(params),
+  );
 
   return server;
 }

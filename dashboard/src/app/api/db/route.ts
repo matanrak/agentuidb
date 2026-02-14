@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { StringRecordId } from "surrealdb";
-import { getServerSurreal, resetServerSurreal } from "@/lib/surreal-server";
+import { getDb, closeDb } from "@agentuidb/core/db";
 
 export async function POST(req: Request) {
   const body = await req.json();
   const { action } = body;
 
   try {
-    const db = await getServerSurreal();
+    const db = await getDb();
 
     switch (action) {
       case "query": {
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error("[/api/db]", action, err);
-    resetServerSurreal();
+    await closeDb();
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500 },

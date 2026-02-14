@@ -1,0 +1,34 @@
+{
+  "name": "@agentuidb/core",
+  "version": "1.0.0",
+  "description": "Core engine: DB, tools, types for AgentUIDB",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./query": {
+      "types": "./dist/surql.d.ts",
+      "default": "./dist/surql.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./db": {
+      "types": "./dist/db.d.ts",
+      "default": "./dist/db.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@surrealdb/node": "^1.0.0-beta.3",
+    "surrealdb": "^1.3.2",
+    "zod": "^3.25.0"
+  }
+}

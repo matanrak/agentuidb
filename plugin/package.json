@@ -1,0 +1,17 @@
+{
+  "name": "@agentuidb/openclaw-plugin",
+  "version": "1.0.0",
+  "description": "AgentUIDB plugin for OpenClaw — structured data extraction from conversation",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {
+    "@agentuidb/core": "file:../core",
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

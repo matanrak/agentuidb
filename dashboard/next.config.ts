@@ -12,6 +12,7 @@ config({ path: resolve(root, envFile) });
 const nextConfig: NextConfig = {
   reactCompiler: true,
   output: "standalone",
+  serverExternalPackages: ["@surrealdb/node"],
 };
 
 export default nextConfig;

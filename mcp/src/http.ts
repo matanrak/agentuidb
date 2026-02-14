@@ -2,7 +2,7 @@
 
 import { createServer as createHttpServer } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { closeDb } from "./db.js";
+import { closeDb } from "@agentuidb/core";
 import { createServer } from "./server.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);

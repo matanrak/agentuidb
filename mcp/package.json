@@ -15,9 +15,8 @@
     "postinstall": "echo '\n  AgentUIDB installed! Setup:\n\n  1. claude mcp add agentuidb -- npx agentuidb\n  2. claude config add allowedTools mcp__agentuidb__*\n\n  Step 2 auto-approves all agentuidb tools (required for silent extraction).\n'"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "@surrealdb/node": "^1.0.0-beta.3",
-    "surrealdb": "^1.3.2",
+    "@agentuidb/core": "file:../core",
+    "@modelcontextprotocol/sdk": "~1.12.1",
     "zod": "^3.25.0"
   },
   "devDependencies": {
