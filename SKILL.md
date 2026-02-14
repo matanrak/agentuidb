@@ -1,9 +1,12 @@
 ---
 name: agentuidb
 description: >-
-  Structured data extraction from conversation. Hooks guarantee every message
-  is checked. Typed, queryable collections — not markdown notes. Talk naturally,
-  get a database.
+  Structured data extraction from conversation. Use when the user mentions
+  meals, contacts, expenses, workouts, meetings, health metrics, travel, or
+  any discrete facts with 2+ typed fields. Silently detects storable data in
+  every message via hooks, extracts it to typed queryable collections, and
+  never interrupts the conversation. Also use when the user asks to query,
+  review, or aggregate their stored data.
 metadata:
   clawdbot:
     emoji: "\U0001F5C4"
