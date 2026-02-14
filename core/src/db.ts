@@ -1,20 +1,61 @@
 import Surreal from "surrealdb";
-import { surrealdbNodeEngines } from "@surrealdb/node";
 import { homedir } from "node:os";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const NAMESPACE = "agentuidb";
-const DATABASE = "default";
+interface Settings {
+  url?: string | null;
+  user?: string;
+  pass?: string;
+  namespace?: string;
+  database?: string;
+  dataDir?: string;
+}
+
+function getSettingsDir(): string {
+  return resolve(homedir(), ".agentuidb");
+}
+
+function loadSettings(): Settings {
+  try {
+    const raw = readFileSync(resolve(getSettingsDir(), "settings.json"), "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function getConfig() {
+  const settings = loadSettings();
+  return {
+    url: process.env.AGENTUIDB_URL ?? settings.url ?? null,
+    user: process.env.AGENTUIDB_USER ?? settings.user ?? "root",
+    pass: process.env.AGENTUIDB_PASS ?? settings.pass ?? "root",
+    namespace: process.env.AGENTUIDB_NS ?? settings.namespace ?? "agentuidb",
+    database: process.env.AGENTUIDB_DB ?? settings.database ?? "default",
+    dataDir: process.env.AGENTUIDB_DATA_DIR ?? settings.dataDir ?? getSettingsDir(),
+  };
+}
 
 let db: Surreal | null = null;
 let connecting: Promise<Surreal> | null = null;
 
-function getDataPath(): string {
-  const dir = process.env.AGENTUIDB_DATA_DIR
-    ?? resolve(homedir(), ".agentuidb");
-  mkdirSync(dir, { recursive: true });
-  return resolve(dir, "data.db");
+async function connectEmbedded(cfg: ReturnType<typeof getConfig>): Promise<Surreal> {
+  const { surrealdbNodeEngines } = await import("@surrealdb/node");
+  mkdirSync(cfg.dataDir, { recursive: true });
+  const dataPath = resolve(cfg.dataDir, "data.db");
+  const instance = new Surreal({ engines: surrealdbNodeEngines() });
+  await instance.connect(`surrealkv://${dataPath}`);
+  await instance.use({ namespace: cfg.namespace, database: cfg.database });
+  return instance;
+}
+
+async function connectHttp(cfg: ReturnType<typeof getConfig>): Promise<Surreal> {
+  const instance = new Surreal();
+  await instance.connect(`${cfg.url}/rpc`);
+  await instance.use({ namespace: cfg.namespace, database: cfg.database });
+  await instance.signin({ username: cfg.user, password: cfg.pass });
+  return instance;
 }
 
 export async function getDb(): Promise<Surreal> {
@@ -22,19 +63,14 @@ export async function getDb(): Promise<Surreal> {
   if (connecting) return connecting;
 
   connecting = (async () => {
-    const instance = new Surreal({
-      engines: surrealdbNodeEngines(),
-    });
+    const cfg = getConfig();
     try {
-      await instance.connect(`surrealkv://${getDataPath()}`);
-      await instance.use({ namespace: NAMESPACE, database: DATABASE });
-    } catch (err) {
+      const instance = cfg.url ? await connectHttp(cfg) : await connectEmbedded(cfg);
+      db = instance;
+      return db;
+    } finally {
       connecting = null;
-      throw err;
     }
-    db = instance;
-    connecting = null;
-    return db;
   })();
 
   return connecting;
