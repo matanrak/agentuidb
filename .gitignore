@@ -7,4 +7,3 @@ next-env.d.ts
 *.log
 .env
 .env.local
-.surreal/

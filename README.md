@@ -66,66 +66,23 @@ Then ask for any view: *"Show me everyone I met last month"*, *"Chart my spendin
 
 ## Quick Start
 
-Requires [Docker](https://www.docker.com/get-started).
-
-```bash
-docker compose build         # build images
-docker compose up -d         # starts DB, MCP server, and Dashboard
-npm run docker:seed          # load sample data (optional)
-```
-
-Open [http://localhost:3000](http://localhost:3000). That's it.
-
-| Service   | URL                     | Description                     |
-|-----------|-------------------------|---------------------------------|
-| Dashboard | http://localhost:3000   | Next.js web UI with AI chat     |
-| MCP       | http://localhost:3001   | MCP server (Streamable HTTP)    |
-| SurrealDB | http://localhost:8000   | Database                        |
-
-## MCP Server
-
-Works with Claude Desktop and any MCP client. Two transports:
-
-**stdio** (for Claude Desktop):
-```bash
-node mcp/dist/index.js
-```
-
-**HTTP** (for network access):
-```bash
-node mcp/dist/http.js       # port 3001, endpoint: POST /mcp
-```
-
-<details>
-<summary><strong>Local Development</strong></summary>
-
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
-- [SurrealDB](https://surrealdb.com/) CLI (`brew install surrealdb/tap/surreal`)
 
-### Install
-
-```bash
-npm install                  # root deps (scripts)
-cd mcp && npm install        # MCP server deps
-cd ../dashboard && npm install  # dashboard deps
-```
-
-### Build
+### Install & Build
 
 ```bash
-npm run build                # compiles the MCP server
+npm install                  # installs all workspace packages
+npm run build                # compiles core + MCP server
 ```
 
-### Running the Database
+### Add to Claude Code
 
 ```bash
-npm run db                   # start SurrealDB on http://127.0.0.1:8000
-npm run db:demo              # start + auto-load sample data
+claude mcp add agentuidb -- node /path/to/agentuidb/mcp/dist/index.js
+claude config add allowedTools 'mcp__agentuidb__*'
 ```
-
-Data persists to `.surreal/` (gitignored).
 
 ### Web Dashboard
 
@@ -135,45 +92,37 @@ cd dashboard && npm run dev
 
 Opens at [http://localhost:3000](http://localhost:3000).
 
-### Seed Data
+Data is stored in `~/.agentuidb/agentuidb.sqlite` (auto-created on first use).
 
+## MCP Server
+
+Works with Claude Desktop and any MCP client.
+
+**stdio** (for Claude Desktop / Claude Code):
 ```bash
-npm run db:load              # import static snapshot (fast, no API key needed)
-npm run seed                 # generate fresh data via AI (needs OPENROUTER_API_KEY)
+node mcp/dist/index.js
 ```
 
-### Chat Mode
-
-Interactive CLI where the AI stores structured data from your messages:
+### Test
 
 ```bash
-OPENROUTER_API_KEY=sk-or-... AGENTUIDB_URL=http://127.0.0.1:8000 npm run chat
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}' | node mcp/dist/index.js
 ```
-
-### Running Tests
-
-```bash
-npm run build && npm run test
-```
-
-</details>
 
 ## Project Structure
 
 ```
-├── mcp/                 # MCP server (TypeScript, Node.js)
-│   ├── src/
-│   ├── Dockerfile
-│   └── package.json
-├── dashboard/           # Web dashboard (Next.js, React)
-│   ├── src/
-│   ├── Dockerfile
-│   └── package.json
-├── scripts/             # CLI tools (chat, seed, test, watch)
-├── docker-compose.yml   # Run everything with Docker
-└── package.json         # Root scripts
+├── core/               # Shared library (@agentuidb/core)
+│   └── src/            # DB access, query builder, types, handlers
+├── mcp/                # MCP server (stdio transport)
+│   └── src/            # Thin adapter over core
+├── dashboard/          # Web dashboard (Next.js, React)
+│   └── src/            # UI, hooks, API routes
+├── plugin/             # OpenClaw plugin adapter
+├── scripts/            # CLI tools (watch)
+└── package.json        # npm workspaces root
 ```
 
 ## Built With
 
-[Next.js](https://nextjs.org/) · [SurrealDB](https://surrealdb.com/) · [MCP](https://modelcontextprotocol.io/) · [Recharts](https://recharts.org/) · [Tailwind CSS](https://tailwindcss.com/) · [shadcn/ui](https://ui.shadcn.com/)
+[Next.js](https://nextjs.org/) · [SQLite](https://sqlite.org/) · [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) · [MCP](https://modelcontextprotocol.io/) · [Recharts](https://recharts.org/) · [Tailwind CSS](https://tailwindcss.com/) · [shadcn/ui](https://ui.shadcn.com/)
