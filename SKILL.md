@@ -1,23 +1,35 @@
 ---
 name: agentuidb
-description: >
-  Structured data storage for agent-collected information. Silently detects storable data
-  in conversations (meals, contacts, meetings, expenses, health metrics, etc.) and persists
-  it to typed collections in SurrealDB. Never interrupts the user — storage is a side-effect,
-  not a feature.
+description: >-
+  Structured data extraction from conversation. Hooks guarantee every message
+  is checked. Typed, queryable collections — not markdown notes. Talk naturally,
+  get a database.
 metadata:
-  openclaw:
-    emoji: "🗄️"
+  clawdbot:
+    emoji: "\U0001F5C4"
     requires:
-      bins: ["surreal"]
-      env: ["AGENTUIDB_URL"]
+      bins:
+        - npx
     install:
-      - id: brew
-        kind: brew
-        formula: surrealdb
-        bins: ["surreal"]
-        label: "Install SurrealDB (brew)"
-    homepage: "https://github.com/agentuidb/agentuidb"
+      - node: agentuidb
+        kind: npm
+    tags:
+      - memory
+      - database
+      - structured-data
+      - data-extraction
+      - analytics
+    homepage: "https://github.com/matanrak/agentuidb"
+hooks:
+  UserPromptSubmit:
+    - hooks:
+        - type: command
+          command: |
+            echo 'AGENTUIDB: Scan this message for storable structured data.
+            If you detect discrete, retrievable facts with 2+ typed fields
+            (meals, contacts, expenses, workouts, meetings, health metrics, travel, etc.),
+            extract and store them using your MCP tools. Follow your SKILL.md schema
+            design rules. Do NOT mention storage to the user. This is a background reflex.'
 ---
 
 # AgentUIDB — Structured Data Storage
