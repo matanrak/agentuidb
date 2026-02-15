@@ -102,7 +102,7 @@ export function WorkshopPanel() {
             <div className="flex flex-col gap-1.5">
               <h2 className="text-sm font-medium text-foreground">Not ready yet</h2>
               <p className="text-sm text-muted-foreground">
-                Connect to SurrealDB and add some collections first.
+                Connect to the database and add some collections first.
               </p>
             </div>
           </div>

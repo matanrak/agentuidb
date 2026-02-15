@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { loadNavViews, saveNavViews, type NavView, type WidgetLayoutItem } from "@/lib/storage";
 import { getDefaultWidgetSize } from "@/lib/widget-sizing";
-import { dbQuery } from "@/lib/surreal-client";
+import { dbQuery } from "@/lib/db-client";
 
 interface ViewsContextValue {
   views: NavView[];

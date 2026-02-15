@@ -1,7 +1,6 @@
 /**
- * Client-side proxy for SurrealDB operations.
- * All queries are routed through /api/db so the server
- * connects to SurrealDB (where 127.0.0.1 actually reaches the DB).
+ * Client-side proxy for DB operations.
+ * All queries are routed through /api/db (server-side SQLite).
  */
 
 async function rpc(body: Record<string, unknown>): Promise<unknown> {
@@ -18,7 +17,7 @@ async function rpc(body: Record<string, unknown>): Promise<unknown> {
   return result;
 }
 
-/** Run a SurrealQL query. Returns the raw result array (one entry per statement). */
+/** Run a SQL query. Returns the raw result array (one entry per statement). */
 export async function dbQuery<T = unknown[]>(
   sql: string,
   vars?: Record<string, unknown>,
@@ -39,7 +38,7 @@ export async function dbDelete(id: string): Promise<void> {
   await rpc({ action: "delete", id });
 }
 
-/** Ping the server-side SurrealDB connection. */
+/** Ping the server-side DB connection. */
 export async function dbPing(): Promise<boolean> {
   try {
     await rpc({ action: "ping" });

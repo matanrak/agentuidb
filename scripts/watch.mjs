@@ -1,32 +1,25 @@
 #!/usr/bin/env node
 
 // Live dashboard for AgentUIDB — refreshes every 2s
-// Usage: node watch.mjs
-// Reads .env automatically if present
+// Usage: node scripts/watch.mjs
+// Reads data directly from the SQLite database
 
+import Database from "better-sqlite3";
+import { homedir } from "node:os";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-// Load .env if present
-try {
-  const env = readFileSync(new URL("../.env", import.meta.url), "utf8");
-  for (const line of env.split("\n")) {
-    const [k, ...v] = line.split("=");
-    if (k && !k.startsWith("#")) process.env[k.trim()] = v.join("=").trim();
-  }
-} catch {}
-
-const DB_URL = process.env.AGENTUIDB_URL ?? "http://127.0.0.1:8000";
-const USER = process.env.AGENTUIDB_USER ?? "root";
-const PASS = process.env.AGENTUIDB_PASS ?? "root";
 const INTERVAL = 2000;
 
-const auth = "Basic " + btoa(`${USER}:${PASS}`);
-const headers = {
-  Accept: "application/json",
-  Authorization: auth,
-  "surreal-ns": "agentuidb",
-  "surreal-db": "default",
-};
+function getDbPath() {
+  const settingsDir = resolve(homedir(), ".agentuidb");
+  try {
+    const raw = readFileSync(resolve(settingsDir, "settings.json"), "utf-8");
+    const settings = JSON.parse(raw);
+    if (settings.dataDir) return resolve(settings.dataDir, "agentuidb.sqlite");
+  } catch {}
+  return resolve(settingsDir, "agentuidb.sqlite");
+}
 
 const dim = (s) => `\x1b[2m${s}\x1b[0m`;
 const bold = (s) => `\x1b[1m${s}\x1b[0m`;
@@ -35,72 +28,74 @@ const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
 const magenta = (s) => `\x1b[35m${s}\x1b[0m`;
 const red = (s) => `\x1b[31m${s}\x1b[0m`;
 
-async function sql(body) {
-  const resp = await fetch(`${DB_URL}/sql`, { method: "POST", headers, body });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
-}
-
-async function render() {
+function render() {
   const now = new Date().toLocaleTimeString();
+  const dbPath = getDbPath();
   const lines = [];
-  lines.push(`${bold("AgentUIDB")}  ${dim(DB_URL)}  ${dim(now)}`);
+  lines.push(`${bold("AgentUIDB")}  ${dim(dbPath)}  ${dim(now)}`);
   lines.push("─".repeat(60));
 
-  let meta;
+  let db;
   try {
-    meta = await sql("SELECT name, description FROM _collections_meta");
+    db = new Database(dbPath, { readonly: true });
   } catch (e) {
-    lines.push("", red(`Cannot connect to SurrealDB at ${DB_URL}`), dim(e.message));
+    lines.push("", red(`Cannot open database at ${dbPath}`), dim(e.message));
     paint(lines);
     return;
   }
 
-  const collections = meta[0]?.result ?? [];
+  try {
+    const collections = db
+      .prepare("SELECT name, description FROM _collections_meta ORDER BY name")
+      .all();
 
-  if (!collections.length) {
-    lines.push("", dim("  (no collections yet — start chatting)"));
-    paint(lines);
-    return;
-  }
-
-  const queries = collections
-    .map((c) => `SELECT * FROM ${c.name} ORDER BY created_at DESC LIMIT 20`)
-    .join("; ");
-  const results = await sql(queries);
-
-  for (let i = 0; i < collections.length; i++) {
-    const col = collections[i];
-    const docs = results[i]?.result ?? [];
-
-    lines.push("");
-    lines.push(`${cyan(col.name)}  ${dim(col.description)}  ${dim(`(${docs.length})`)}`);
-
-    if (!docs.length) {
-      lines.push(dim("  (empty)"));
-      continue;
+    if (!collections.length) {
+      lines.push("", dim("  (no collections yet — start chatting)"));
+      paint(lines);
+      return;
     }
 
-    for (const doc of docs) {
-      const { id, created_at, ...rest } = doc;
-      const shortId = String(id).split(":")[1] ?? String(id);
-      const time = created_at
-        ? magenta(new Date(created_at).toLocaleString())
-        : dim("—");
+    for (const col of collections) {
+      const esc = col.name.replace(/`/g, "``");
+      let docs = [];
+      try {
+        docs = db
+          .prepare(`SELECT id, data, created_at FROM \`${esc}\` ORDER BY created_at DESC LIMIT 20`)
+          .all();
+      } catch {}
 
-      const fields = Object.entries(rest)
-        .filter(([, v]) => v != null)
-        .map(([k, v]) => {
-          const val = Array.isArray(v) ? v.join(", ") : String(v);
-          return `${dim(k)}=${yellow(val)}`;
-        })
-        .join("  ");
+      lines.push("");
+      lines.push(`${cyan(col.name)}  ${dim(col.description)}  ${dim(`(${docs.length})`)}`);
 
-      lines.push(`  ${dim(shortId)}  ${time}  ${fields}`);
+      if (!docs.length) {
+        lines.push(dim("  (empty)"));
+        continue;
+      }
+
+      for (const doc of docs) {
+        const parsed = JSON.parse(doc.data);
+        const shortId = doc.id.slice(0, 8);
+        const time = doc.created_at
+          ? magenta(new Date(doc.created_at).toLocaleString())
+          : dim("—");
+
+        const fields = Object.entries(parsed)
+          .filter(([, v]) => v != null)
+          .map(([k, v]) => {
+            const val = Array.isArray(v) ? v.join(", ") : String(v);
+            return `${dim(k)}=${yellow(val)}`;
+          })
+          .join("  ");
+
+        lines.push(`  ${dim(shortId)}  ${time}  ${fields}`);
+      }
     }
+
+    lines.push("", dim(`Refreshing every ${INTERVAL / 1000}s — Ctrl+C to quit`));
+  } finally {
+    db.close();
   }
 
-  lines.push("", dim(`Refreshing every ${INTERVAL / 1000}s — Ctrl+C to quit`));
   paint(lines);
 }
 
@@ -108,5 +103,5 @@ function paint(lines) {
   process.stdout.write("\x1b[2J\x1b[H" + lines.join("\n") + "\n");
 }
 
-await render();
+render();
 setInterval(render, INTERVAL);

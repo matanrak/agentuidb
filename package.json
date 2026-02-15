@@ -3,23 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "workspaces": ["core", "mcp", "plugin", "dashboard"],
   "scripts": {
-    "build": "npm run build --prefix mcp",
+"build": "npm run build -w @agentuidb/core && npm run build -w agentuidb",
     "start": "node mcp/dist/index.js",
     "start:http": "node mcp/dist/http.js",
-    "dev": "npm run dev --prefix mcp",
+    "dev": "npm run build -w @agentuidb/core && npm run dev --prefix mcp",
     "test": "node scripts/test.mjs",
     "chat": "node scripts/chat.mjs",
     "watch": "node scripts/watch.mjs",
-    "seed": "node scripts/seed.mjs",
-    "db": "bash scripts/start-db.sh",
-    "db:demo": "bash scripts/start-db-demo.sh",
-    "db:load": "bash scripts/load-seed-data.sh",
-    "docker:build": "docker compose build",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f",
-    "docker:seed": "docker compose exec db /surreal import --conn http://localhost:8000 --user root --pass root --ns agentuidb --db default /seed-data.surql"
+    "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.26"

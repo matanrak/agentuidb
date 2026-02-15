@@ -1,30 +1,20 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSurreal } from "./use-surreal";
-import { dbQuery } from "@/lib/surreal-client";
+import type { FieldDefinition, CollectionMeta } from "@agentuidb/core/types";
+import { escIdent } from "@agentuidb/core/query";
+import { useDb } from "./use-db";
+import { dbQuery } from "@/lib/db-client";
 
-export interface FieldDefinition {
-  name: string;
-  type: string;
-  required: boolean;
-  enum?: string[];
-  default?: unknown;
-}
+export type { FieldDefinition, CollectionMeta };
 
-export interface CollectionMeta {
-  id?: string;
-  name: string;
-  description: string;
-  fields: FieldDefinition[];
-  created_at: string;
-  updated_at: string;
+export type CollectionMetaWithSamples = CollectionMeta & {
   sampleDocs?: Record<string, unknown>[];
-}
+};
 
 export function useCollections() {
-  const { status } = useSurreal();
-  const [collections, setCollections] = useState<CollectionMeta[]>([]);
+  const { status } = useDb();
+  const [collections, setCollections] = useState<CollectionMetaWithSamples[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -40,9 +30,8 @@ export function useCollections() {
       const withSamples = await Promise.all(
         metas.map(async (col) => {
           try {
-            const safeName = col.name.replace(/[^a-zA-Z0-9_]/g, "");
             const [docs] = await dbQuery<[Record<string, unknown>[]]>(
-              `SELECT * FROM \`${safeName}\` ORDER BY created_at DESC LIMIT 2`
+              `SELECT * FROM \`${escIdent(col.name)}\` ORDER BY created_at DESC LIMIT 2`
             );
             return { ...col, sampleDocs: docs ?? [] };
           } catch {

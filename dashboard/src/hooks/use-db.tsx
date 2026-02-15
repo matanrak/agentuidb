@@ -1,19 +1,19 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { dbPing } from "@/lib/surreal-client";
+import { dbPing } from "@/lib/db-client";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
-interface SurrealContextValue {
+interface DbContextValue {
   status: ConnectionStatus;
   error: string | null;
   reconnect: () => void;
 }
 
-const SurrealContext = createContext<SurrealContextValue | null>(null);
+const DbContext = createContext<DbContextValue | null>(null);
 
-export function SurrealProvider({ children }: { children: ReactNode }) {
+export function DbProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +27,7 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
         setStatus("connected");
       } else {
         setStatus("error");
-        setError("Could not reach SurrealDB");
+        setError("Could not reach database");
       }
     } catch (err) {
       setStatus("error");
@@ -44,14 +44,14 @@ export function SurrealProvider({ children }: { children: ReactNode }) {
   }, [connect]);
 
   return (
-    <SurrealContext.Provider value={{ status, error, reconnect }}>
+    <DbContext.Provider value={{ status, error, reconnect }}>
       {children}
-    </SurrealContext.Provider>
+    </DbContext.Provider>
   );
 }
 
-export function useSurreal(): SurrealContextValue {
-  const ctx = useContext(SurrealContext);
-  if (!ctx) throw new Error("useSurreal must be used within SurrealProvider");
+export function useDb(): DbContextValue {
+  const ctx = useContext(DbContext);
+  if (!ctx) throw new Error("useDb must be used within DbProvider");
   return ctx;
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useSurreal } from "@/hooks/use-surreal";
+import { useDb } from "@/hooks/use-db";
 
 export function ConnectionStatus() {
-  const { status, error } = useSurreal();
+  const { status, error } = useDb();
 
   const colors: Record<string, string> = {
     connected: "bg-success",

@@ -46,7 +46,7 @@ function buildCollectionDocs(collections: Array<{
     // Include sample data so the agent understands real field values and shapes
     if (col.sampleDocs && col.sampleDocs.length > 0) {
       const samples = col.sampleDocs.map((doc) => {
-        // Strip SurrealDB record ID but keep created_at so the AI sees the date field
+        // Strip record ID but keep created_at so the AI sees the date field
         const { id: _id, updated_at: _ua, ...rest } = doc;
         return `    ${JSON.stringify(rest)}`;
       }).join("\n");
@@ -310,7 +310,7 @@ Use transforms to create \`daily_totals\` (groupAggregate meals by day, sum calo
       }>,
     );
 
-    systemPrompt += `\n\n## Available SurrealDB Collections\n\nData loads automatically when you set dataPath on a Table or Chart component. Set dataPath to the collection name.\nAll collections have a "created_at" field (ISO 8601 datetime) — use this as xKey for time-based charts.\n\n${collectionDocs}`;
+    systemPrompt += `\n\n## Available Collections\n\nData loads automatically when you set dataPath on a Table or Chart component. Set dataPath to the collection name.\nAll collections have a "created_at" field (ISO 8601 datetime) — use this as xKey for time-based charts.\n\n${collectionDocs}`;
   }
 
   systemPrompt += `\n\nToday's date: ${new Date().toISOString().slice(0, 10)}`;

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSurreal } from "./use-surreal";
+import { useDb } from "./use-db";
 import { useViews } from "./use-views";
 import { useWidgetHub } from "./use-widget-hub";
-import { dbQuery } from "@/lib/surreal-client";
+import { dbQuery } from "@/lib/db-client";
 import { generateDefaultLayout } from "@/lib/widget-sizing";
 import type { WidgetLayoutItem } from "@/lib/storage";
 import type { Layout, ResponsiveLayouts } from "react-grid-layout";
@@ -13,7 +13,7 @@ import type { Layout, ResponsiveLayouts } from "react-grid-layout";
 type InitSource = "db" | "localStorage" | "defaults" | null;
 
 export function useViewLayout(viewId: string, widgetIds: string[]) {
-  const { status } = useSurreal();
+  const { status } = useDb();
   const { views, updateViewLayouts } = useViews();
   const { widgets } = useWidgetHub();
   const [layouts, setLayouts] = useState<ResponsiveLayouts>({});
@@ -47,7 +47,7 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
     async function load() {
       setIsLoading(true);
 
-      // Try SurrealDB via API proxy
+      // Try DB via API proxy
       if (status === "connected") {
         try {
           const [results] = await dbQuery<
@@ -63,7 +63,7 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
             return;
           }
         } catch (err) {
-          console.warn("Failed to load layout from SurrealDB:", err);
+          console.warn("Failed to load layout from DB:", err);
         }
       }
 
@@ -107,7 +107,7 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
     };
   }, [viewId]);
 
-  // Debounced persist to SurrealDB + localStorage
+  // Debounced persist to DB + localStorage
   const persistLayouts = useCallback(
     (newLayouts: ResponsiveLayouts) => {
       updateViewLayouts(viewId, newLayouts as Record<string, WidgetLayoutItem[]>);
@@ -115,18 +115,13 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
         try {
-          const [updated] = await dbQuery<[Array<unknown>]>(
-            "UPDATE _view_layouts SET layouts = $layouts, updated_at = time::now() WHERE view_id = $viewId",
+          await dbQuery(
+            `INSERT INTO _view_layouts (view_id, layouts) VALUES ($viewId, $layouts)
+             ON CONFLICT(view_id) DO UPDATE SET layouts = excluded.layouts, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
             { viewId, layouts: newLayouts },
           );
-          if (!updated || (Array.isArray(updated) && updated.length === 0)) {
-            await dbQuery(
-              "CREATE _view_layouts SET view_id = $viewId, layouts = $layouts, created_at = time::now(), updated_at = time::now()",
-              { viewId, layouts: newLayouts },
-            );
-          }
         } catch (err) {
-          console.error("Failed to save layout to SurrealDB:", err);
+          console.error("Failed to save layout to DB:", err);
         }
       }, 500);
     },

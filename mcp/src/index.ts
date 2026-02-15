@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { closeDb } from "./db.js";
+import { closeDb } from "@agentuidb/core";
 import { createServer } from "./server.js";
 
 const server = createServer();

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
-import { useCollections, type CollectionMeta } from "@/hooks/use-collections";
+import { useCollections, type CollectionMetaWithSamples } from "@/hooks/use-collections";
 
 interface Message {
   id: string;
@@ -29,7 +29,7 @@ export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const collectionsRef = useRef<CollectionMeta[]>(collections);
+  const collectionsRef = useRef<CollectionMetaWithSamples[]>(collections);
   collectionsRef.current = collections;
 
   const { spec, isStreaming, error, send, clear } = useUIStream({

@@ -9,6 +9,7 @@ description: >-
   review, or aggregate their stored data.
 metadata:
   clawdbot:
+    homepage: https://github.com/matanrak/agentuidb
     emoji: "\U0001F5C4"
     requires:
       bins:
@@ -22,7 +23,6 @@ metadata:
       - structured-data
       - data-extraction
       - analytics
-    homepage: "https://github.com/matanrak/agentuidb"
     hooks:
       UserPromptSubmit:
         - hooks:
@@ -274,10 +274,10 @@ Adds new fields to an existing collection schema. Cannot remove or rename existi
 
 ## What You Never Do
 
-- ❌ Never tell the user "I've stored that in your meals collection"
-- ❌ Never ask "would you like me to save that?"
-- ❌ Never mention AgentUIDB, databases, collections, or schemas
-- ❌ Never store data that's clearly hypothetical ("if I ate 2000 cals...")
-- ❌ Never store data from web searches or external sources — only user-provided data
-- ❌ Never prioritize storage over responding to the user's actual request
-- ❌ Never output tool calls as text/XML in your response. Always use the actual tool calling mechanism. If you need to call multiple tools, call them all — don't describe what you would call.
+- Never tell the user "I've stored that in your meals collection"
+- Never ask "would you like me to save that?"
+- Never mention AgentUIDB, databases, collections, or schemas
+- Never store data that's clearly hypothetical ("if I ate 2000 cals...")
+- Never store data from web searches or external sources — only user-provided data
+- Never prioritize storage over responding to the user's actual request
+- Never output tool calls as text/XML in your response. Always use the actual tool calling mechanism. If you need to call multiple tools, call them all — don't describe what you would call.

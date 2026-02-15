@@ -40,47 +40,29 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { useCallback } from "react";
+import { buildCollectionQuery } from "@agentuidb/core/query";
 import { catalog } from "./catalog";
-import { dbQuery } from "@/lib/surreal-client";
+import { dbQuery } from "@/lib/db-client";
 import { useEdit } from "./edit-context";
 
 // =============================================================================
-// SurrealDB Query Helper
+// DB Query Helper
 // =============================================================================
 
-async function querySurrealCollection(
+async function queryDbCollection(
   collection: string,
   filters?: Record<string, unknown> | null,
   sort_by?: string | null,
   sort_order?: string | null,
   limit?: number | null,
 ): Promise<Record<string, unknown>[]> {
-  /** Escape a name for use inside backtick-delimited SurrealDB identifiers. */
-  const esc = (name: string) => name.replace(/`/g, "``");
-
-  const vars: Record<string, unknown> = {};
-  const whereClauses: string[] = [];
-
-  if (filters) {
-    let i = 0;
-    for (const [field, value] of Object.entries(filters)) {
-      if (!field) continue;
-      vars[`p${i}`] = value;
-      whereClauses.push(`\`${esc(field)}\` = $p${i}`);
-      i++;
-    }
-  }
-
-  const sortBy = sort_by ?? "created_at";
-  let query = `SELECT * FROM \`${esc(collection)}\``;
-  if (whereClauses.length > 0) {
-    query += ` WHERE ${whereClauses.join(" AND ")}`;
-  }
-  const safeSortDir = (sort_order ?? "desc").toUpperCase() === "ASC" ? "ASC" : "DESC";
-  query += ` ORDER BY \`${esc(sortBy)}\` ${safeSortDir}`;
-  const safeLimit = Math.max(1, Math.min(100, Math.floor(limit ?? 50)));
-  query += ` LIMIT ${safeLimit}`;
-
+  const { query, vars } = buildCollectionQuery({
+    collection,
+    filters,
+    sort_by,
+    sort_order,
+    limit: limit ?? 50,
+  });
   const [results] = await dbQuery<[Record<string, unknown>[]]>(query, vars);
   return results ?? [];
 }
@@ -727,7 +709,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     queryCollection: async (params, setData) => {
       if (!params?.collection || !params?.dataKey) return;
       try {
-        const results = await querySurrealCollection(
+        const results = await queryDbCollection(
           params.collection as string,
           params.filters as Record<string, unknown> | null,
           params.sort_by as string | null,
@@ -743,7 +725,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     refreshData: async (params, setData) => {
       if (!params?.collection || !params?.dataKey) return;
       try {
-        const results = await querySurrealCollection(
+        const results = await queryDbCollection(
           params.collection as string,
           null,
           null,
