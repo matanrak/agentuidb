@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
-import { loadNavViews, saveNavViews, type NavView, type WidgetLayoutItem } from "@/lib/storage";
+import { loadNavViews, saveNavView, deleteNavView, type NavView, type WidgetLayoutItem } from "@/lib/storage";
 import { getDefaultWidgetSize } from "@/lib/widget-sizing";
 import { dbQuery } from "@/lib/db-client";
 
@@ -23,7 +23,7 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState("chat");
 
   useEffect(() => {
-    setViews(loadNavViews());
+    loadNavViews().then(setViews).catch(console.error);
   }, []);
 
   const addView = useCallback((name: string): string => {
@@ -34,24 +34,17 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
       widgetIds: [],
       created_at: new Date().toISOString(),
     };
-    setViews((prev) => {
-      const next = [...prev, view];
-      saveNavViews(next);
-      return next;
-    });
+    setViews((prev) => [...prev, view]);
+    saveNavView(view).catch(console.error);
     setActiveTab(id);
     return id;
   }, []);
 
   const removeView = useCallback((id: string) => {
-    setViews((prev) => {
-      const next = prev.filter((v) => v.id !== id);
-      saveNavViews(next);
-      return next;
-    });
+    setViews((prev) => prev.filter((v) => v.id !== id));
+    deleteNavView(id).catch(console.error);
+    dbQuery("DELETE FROM view_layouts WHERE view_id = $viewId", { viewId: id }).catch(() => {});
     setActiveTab((current) => (current === id ? "widgets" : current));
-
-    dbQuery("DELETE FROM _view_layouts WHERE view_id = $viewId", { viewId: id }).catch(() => {});
   }, []);
 
   const addWidgetToView = useCallback((viewId: string, widgetId: string, widgetSpec?: unknown) => {
@@ -74,9 +67,10 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        return { ...v, widgetIds: newWidgetIds, layouts: newLayouts };
+        const updated = { ...v, widgetIds: newWidgetIds, layouts: newLayouts };
+        saveNavView(updated).catch(console.error);
+        return updated;
       });
-      saveNavViews(next);
       return next;
     });
   }, []);
@@ -95,21 +89,18 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        return { ...v, widgetIds: newWidgetIds, layouts: newLayouts };
+        const updated = { ...v, widgetIds: newWidgetIds, layouts: newLayouts };
+        saveNavView(updated).catch(console.error);
+        return updated;
       });
-      saveNavViews(next);
       return next;
     });
   }, []);
 
   const updateViewLayouts = useCallback((viewId: string, layouts: Record<string, WidgetLayoutItem[]>) => {
-    setViews((prev) => {
-      const next = prev.map((v) =>
-        v.id === viewId ? { ...v, layouts } : v
-      );
-      saveNavViews(next);
-      return next;
-    });
+    setViews((prev) =>
+      prev.map((v) => (v.id === viewId ? { ...v, layouts } : v))
+    );
   }, []);
 
   return (

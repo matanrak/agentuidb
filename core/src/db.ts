@@ -43,10 +43,38 @@ export function getDb(): Database.Database {
     )
   `);
 
+  // Migrate _view_layouts -> view_layouts if needed
+  const oldTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='_view_layouts'").get();
+  if (oldTable) {
+    db.exec("ALTER TABLE _view_layouts RENAME TO view_layouts");
+  } else {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS view_layouts (
+        view_id    TEXT PRIMARY KEY,
+        layouts    TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      )
+    `);
+  }
+
   db.exec(`
-    CREATE TABLE IF NOT EXISTS _view_layouts (
-      view_id    TEXT PRIMARY KEY,
-      layouts    TEXT NOT NULL,
+    CREATE TABLE IF NOT EXISTS widgets (
+      id         TEXT PRIMARY KEY,
+      title      TEXT NOT NULL,
+      spec       TEXT NOT NULL,
+      collections TEXT NOT NULL DEFAULT '[]',
+      "order"    INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS nav_views (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      widget_ids TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
       updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     )
