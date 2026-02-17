@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { type Spec } from "@json-render/react";
-import { loadWidgets, saveWidgets, type SavedWidget } from "@/lib/storage";
+import { loadWidgets, saveWidget, deleteWidget, saveWidgetOrder, type SavedWidget } from "@/lib/storage";
 
 interface FlyingWidget {
   sourceRect: DOMRect;
@@ -28,12 +28,7 @@ export function WidgetHubProvider({ children }: { children: ReactNode }) {
   const [flyingWidget, setFlyingWidget] = useState<FlyingWidget | null>(null);
 
   useEffect(() => {
-    setWidgets(loadWidgets());
-  }, []);
-
-  const persist = useCallback((next: SavedWidget[]) => {
-    setWidgets(next);
-    saveWidgets(next);
+    loadWidgets().then(setWidgets).catch(console.error);
   }, []);
 
   const addWidget = useCallback((title: string, spec: Spec, collections: string[]): string => {
@@ -46,23 +41,31 @@ export function WidgetHubProvider({ children }: { children: ReactNode }) {
       order: widgets.length,
       created_at: new Date().toISOString(),
     };
-    persist([...widgets, widget]);
+    setWidgets((prev) => [...prev, widget]);
+    saveWidget(widget).catch(console.error);
     return id;
-  }, [widgets, persist]);
+  }, [widgets]);
 
   const removeWidget = useCallback((id: string) => {
-    const next = widgets.filter((w) => w.id !== id).map((w, i) => ({ ...w, order: i }));
-    persist(next);
-  }, [widgets, persist]);
+    setWidgets((prev) => {
+      const next = prev.filter((w) => w.id !== id).map((w, i) => ({ ...w, order: i }));
+      saveWidgetOrder(next.map((w) => w.id)).catch(console.error);
+      return next;
+    });
+    deleteWidget(id).catch(console.error);
+  }, []);
 
   const reorderWidgets = useCallback((orderedIds: string[]) => {
-    const byId = new Map(widgets.map((w) => [w.id, w]));
-    const next = orderedIds
-      .map((id) => byId.get(id))
-      .filter((w): w is SavedWidget => !!w)
-      .map((w, i) => ({ ...w, order: i }));
-    persist(next);
-  }, [widgets, persist]);
+    setWidgets((prev) => {
+      const byId = new Map(prev.map((w) => [w.id, w]));
+      const next = orderedIds
+        .map((id) => byId.get(id))
+        .filter((w): w is SavedWidget => !!w)
+        .map((w, i) => ({ ...w, order: i }));
+      saveWidgetOrder(orderedIds).catch(console.error);
+      return next;
+    });
+  }, []);
 
   const startFlyAnimation = useCallback((sourceRect: DOMRect, widget: { title: string; spec: Spec; collections: string[] }) => {
     setFlyingWidget({ sourceRect, ...widget });
