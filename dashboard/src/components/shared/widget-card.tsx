@@ -76,8 +76,9 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
     ref,
   ) {
     // ---- Data fetching & editing ----
+    // When loadingOverride is true (e.g. streaming), pass null to avoid fetching against an incomplete spec
     const { data, setData, dataVersion, isLoading, refresh, handleDataChange } =
-      useSpecData(spec);
+      useSpecData(loadingOverride ? null : spec);
     const [editPending, setEditPending] = useState<EditPendingState | null>(
       null,
     );
