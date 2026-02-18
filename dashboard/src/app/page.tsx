@@ -6,6 +6,7 @@ import { WorkshopPanel } from "@/components/workshop/workshop-panel";
 import { WidgetHub } from "@/components/hub/widget-hub";
 import { FlyAnimation } from "@/components/hub/fly-animation";
 import { ViewPanel } from "@/components/views/view-panel";
+import { DatabasePanel } from "@/components/database/database-panel";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -16,6 +17,7 @@ import { useViews } from "@/hooks/use-views";
 export default function DashboardPage() {
   const { activeTab } = useViews();
   const showSplitPanel = activeTab === "chat" || activeTab === "workshop";
+  const showFullPanel = activeTab === "widgets" || activeTab === "database";
 
   return (
     <div className="h-screen flex flex-col">
@@ -36,7 +38,8 @@ export default function DashboardPage() {
         ) : (
           <>
             {activeTab === "widgets" && <WidgetHub />}
-            {!["chat", "workshop", "widgets"].includes(activeTab) && (
+            {activeTab === "database" && <DatabasePanel />}
+            {!showSplitPanel && !showFullPanel && (
               <ViewPanel viewId={activeTab} />
             )}
           </>
