@@ -42,6 +42,8 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
   const isLoadingRef = useRef(false);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
 
   // Load messages from DB when sessionId changes
   useEffect(() => {
@@ -111,7 +113,7 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
       }
 
       // Build message history for the API (all previous messages + new user message)
-      const historyMessages = [...messages, userMsg].map((m) => ({
+      const historyMessages = [...messagesRef.current, userMsg].map((m) => ({
         role: m.role,
         content: m.content,
       }));
@@ -252,7 +254,7 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
         abortRef.current = null;
       }
     },
-    [api, body, messages, onFinish, persistMessage],
+    [api, body, onFinish, persistMessage],
   );
 
   const stop = useCallback(() => {
