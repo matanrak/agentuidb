@@ -41,6 +41,7 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
   const abortRef = useRef<AbortController | null>(null);
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const isLoadingRef = useRef(false);
 
   // Load messages from DB when sessionId changes
   useEffect(() => {
@@ -48,12 +49,17 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
       setMessages([]);
       return;
     }
+    // Don't overwrite in-progress messages during streaming
+    if (isLoadingRef.current) return;
     loadChatMessages(sessionId)
       .then((saved) => {
+        // Re-check in case streaming started while we were loading
+        if (isLoadingRef.current) return;
         const restored: ChatMessage[] = saved.map((m) => ({
           id: m.id,
           role: m.role,
-          content: m.content,
+          // DB auto-parses JSON strings into objects — coerce back to string
+          content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
           toolCalls: m.tool_calls?.length ? (m.tool_calls as ToolCall[]) : undefined,
         }));
         setMessages(restored);
@@ -95,6 +101,7 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setIsLoading(true);
+      isLoadingRef.current = true;
       setError(null);
 
       // Persist user message
@@ -226,6 +233,7 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
         }
       } finally {
         setIsLoading(false);
+        isLoadingRef.current = false;
         abortRef.current = null;
       }
     },

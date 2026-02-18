@@ -78,8 +78,16 @@ function ToolCallIndicator({ tc }: { tc: ToolCall }) {
 }
 
 /** Try to parse content as a JSON UI spec. Returns the spec if valid, null otherwise. */
-function tryParseSpec(content: string): Spec | null {
-  if (!content) return null;
+function tryParseSpec(content: unknown): Spec | null {
+  // Content may arrive as an object if the DB auto-parsed a JSON string
+  if (content && typeof content === "object") {
+    const obj = content as Record<string, unknown>;
+    if (obj.root && obj.elements && typeof obj.elements === "object") {
+      return obj as unknown as Spec;
+    }
+    return null;
+  }
+  if (!content || typeof content !== "string") return null;
   // Find JSON in the content — it might be wrapped in markdown fences
   let jsonStr = content.trim();
   const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
