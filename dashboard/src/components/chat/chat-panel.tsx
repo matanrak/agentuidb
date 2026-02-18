@@ -1,21 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { ArrowUp, Sparkles, Table, BarChart3, LayoutDashboard } from "lucide-react";
-import { useUIStream, type Spec } from "@json-render/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
 import { useCollections, type CollectionMetaWithSamples } from "@/hooks/use-collections";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  spec?: Spec | null;
-}
+import { useAgentChat } from "@/hooks/use-agent-chat";
 
 const SUGGESTIONS = [
   { text: "Show me all my collections", icon: LayoutDashboard },
@@ -25,74 +18,55 @@ const SUGGESTIONS = [
 ];
 
 export function ChatPanel() {
-  const { collections } = useCollections();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  const { collections, refresh: refreshCollections } = useCollections();
   const scrollRef = useRef<HTMLDivElement>(null);
   const collectionsRef = useRef<CollectionMetaWithSamples[]>(collections);
   collectionsRef.current = collections;
 
-  const { spec, isStreaming, error, send, clear } = useUIStream({
-    api: "/api/generate",
-    onError: (err) => console.error("Generation error:", err),
+  const { messages, input, setInput, append, isLoading, error } = useAgentChat({
+    api: "/api/chat",
+    body: {
+      context: {
+        collections: collectionsRef.current.map((c) => ({
+          name: c.name,
+          description: c.description,
+          fields: c.fields,
+          sampleDocs: c.sampleDocs,
+        })),
+      },
+    },
+    onFinish: () => {
+      refreshCollections();
+    },
   });
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages or streaming updates
   useEffect(() => {
     const viewport = scrollRef.current?.querySelector("[data-slot='scroll-area-viewport']");
     if (viewport) {
       viewport.scrollTop = viewport.scrollHeight;
     }
-  }, [messages, spec]);
+  }, [messages]);
 
-  // When streaming completes, finalize the assistant message with the spec
-  const prevStreamingRef = useRef(isStreaming);
-  useEffect(() => {
-    if (prevStreamingRef.current && !isStreaming && spec) {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && last.id === "streaming") {
-          return [...prev.slice(0, -1), { ...last, id: Math.random().toString(36).slice(2), spec }];
-        }
-        return prev;
-      });
-      clear();
-    }
-    prevStreamingRef.current = isStreaming;
-  }, [isStreaming, spec, clear]);
+  const handleSend = useCallback(
+    async (text?: string) => {
+      const msg = (text ?? input).trim();
+      if (!msg) return;
+      setInput("");
+      append({ role: "user", content: msg });
+    },
+    [input, setInput, append],
+  );
 
-  const handleSend = useCallback(async (text?: string) => {
-    const msg = (text ?? input).trim();
-    if (!msg) return;
-    setInput("");
-
-    // Add user message
-    setMessages((prev) => [
-      ...prev,
-      { id: Math.random().toString(36).slice(2), role: "user", content: msg },
-      { id: "streaming", role: "assistant", content: "", spec: null },
-    ]);
-
-    // Build context with collection schemas
-    const context: Record<string, unknown> = {};
-    if (collectionsRef.current.length > 0) {
-      context.collections = collectionsRef.current.map((c) => ({
-        name: c.name,
-        description: c.description,
-        fields: c.fields,
-        sampleDocs: c.sampleDocs,
-      }));
-    }
-
-    await send(msg, context);
-  }, [input, send]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }, [handleSend]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend],
+  );
 
   const hasCollections = collections.length > 0;
 
@@ -109,7 +83,7 @@ export function ChatPanel() {
                 </div>
                 <h2 className="text-xl font-semibold text-foreground">What would you like to see?</h2>
                 <p className="text-sm text-muted-foreground max-w-sm text-center">
-                  Ask me to visualize your data as tables, charts, or interactive dashboards.
+                  Ask me to visualize your data, or tell me about your day and I&apos;ll log it.
                 </p>
               </div>
 
@@ -128,7 +102,7 @@ export function ChatPanel() {
                   <button
                     key={s.text}
                     onClick={() => handleSend(s.text)}
-                    disabled={isStreaming}
+                    disabled={isLoading}
                     className={`flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-card hover:border-border transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed group animate-fade-in-up stagger-${i + 1}`}
                   >
                     <s.icon className="size-3.5 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
@@ -139,17 +113,23 @@ export function ChatPanel() {
             </div>
           )}
 
-          {messages.map((msg, i) => {
-            const precedingUserMsg = msg.role === "assistant"
-              ? messages.slice(0, i).reverse().find((m) => m.role === "user")
-              : undefined;
+          {messages.map((msg) => {
+            const idx = messages.indexOf(msg);
+            const precedingUserMsg =
+              msg.role === "assistant"
+                ? messages
+                    .slice(0, idx)
+                    .reverse()
+                    .find((m) => m.role === "user")
+                : undefined;
+            const isLastMessage = idx === messages.length - 1;
             return (
               <div key={msg.id} className="animate-fade-in-up">
                 <ChatMessage
                   role={msg.role}
                   content={msg.content}
-                  spec={msg.id === "streaming" ? spec : msg.spec}
-                  isStreaming={msg.id === "streaming" && isStreaming}
+                  toolCalls={msg.toolCalls}
+                  isStreaming={isLoading && isLastMessage && msg.role === "assistant"}
                   widgetTitle={precedingUserMsg?.content}
                 />
               </div>
@@ -172,14 +152,14 @@ export function ChatPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your data..."
-              disabled={isStreaming}
+              placeholder="Ask about your data or tell me something to log..."
+              disabled={isLoading}
               className="min-h-[36px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
               rows={1}
             />
             <Button
               onClick={() => handleSend()}
-              disabled={isStreaming || !input.trim()}
+              disabled={isLoading || !input.trim()}
               size="icon"
               className="shrink-0 size-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30"
             >
