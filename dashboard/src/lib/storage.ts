@@ -98,36 +98,32 @@ export interface SavedChatMessage {
 }
 
 export async function loadChatSessions(): Promise<ChatSession[]> {
-  const [rows] = await dbQuery<[ChatSession[]]>(
-    "SELECT id, title, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC"
-  );
-  return rows ?? [];
+  const res = await fetch("/api/chat/sessions");
+  if (!res.ok) throw new Error("Failed to load chat sessions");
+  return res.json();
 }
 
 export async function createChatSession(session: { id: string; title: string }): Promise<void> {
-  await dbQuery(
-    `INSERT INTO chat_sessions (id, title) VALUES ($id, $title)`,
-    { id: session.id, title: session.title }
-  );
+  const res = await fetch("/api/chat/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(session),
+  });
+  if (!res.ok) throw new Error("Failed to create chat session");
 }
 
 export async function updateChatSession(id: string, data: { title?: string }): Promise<void> {
-  if (data.title !== undefined) {
-    await dbQuery(
-      `UPDATE chat_sessions SET title = $title, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = $id`,
-      { id, title: data.title }
-    );
-  } else {
-    await dbQuery(
-      `UPDATE chat_sessions SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = $id`,
-      { id }
-    );
-  }
+  const res = await fetch("/api/chat/sessions", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...data }),
+  });
+  if (!res.ok) throw new Error("Failed to update chat session");
 }
 
 export async function deleteChatSession(id: string): Promise<void> {
-  await dbQuery("DELETE FROM chat_messages WHERE session_id = $id", { id });
-  await dbQuery("DELETE FROM chat_sessions WHERE id = $id", { id });
+  const res = await fetch(`/api/chat/sessions?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete chat session");
 }
 
 export async function loadChatMessages(sessionId: string): Promise<SavedChatMessage[]> {
