@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Database, MessageSquare, Wand2, LayoutGrid, Plus, X } from "lucide-react";
+import { Database, MessageSquare, Wand2, LayoutGrid, Table2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +29,7 @@ const BUILT_IN_TABS = [
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "workshop", label: "Workshop", icon: Wand2 },
   { id: "widgets", label: "Widgets", icon: LayoutGrid },
+  { id: "database", label: "Database", icon: Table2 },
 ] as const;
 
 export function Navbar() {
