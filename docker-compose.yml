@@ -12,5 +12,5 @@ services:
     environment:
       - DATABASE_PATH=/data/db.sqlite
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-sonnet-4}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-sonnet-4.6}
       - AUTH_SECRET=${AUTH_SECRET:-}

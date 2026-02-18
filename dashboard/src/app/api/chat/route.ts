@@ -2,6 +2,7 @@ import { generateText, streamText, stepCountIs } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import * as handlers from "@agentuidb/core";
+import { DEFAULT_MODEL } from "../constants";
 
 export const maxDuration = 60;
 
@@ -274,7 +275,7 @@ export async function POST(req: Request) {
       try {
         // Phase 1: Tool loop with generateText (non-streaming)
         const toolResult = await generateText({
-          model: openrouter.chat(model ?? "anthropic/claude-sonnet-4"),
+          model: openrouter.chat(model ?? DEFAULT_MODEL),
           system: systemPrompt,
           messages,
           tools: dataTools,
@@ -351,7 +352,7 @@ export async function POST(req: Request) {
         }
 
         const streamResult = streamText({
-          model: openrouter.chat(model ?? "anthropic/claude-sonnet-4"),
+          model: openrouter.chat(model ?? DEFAULT_MODEL),
           system: systemPrompt,
           messages: finalMessages,
           temperature: 0.5,
