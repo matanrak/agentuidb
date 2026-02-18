@@ -10,49 +10,33 @@ export interface SavedWidget {
 }
 
 export async function loadWidgets(): Promise<SavedWidget[]> {
-  const [rows] = await dbQuery<[SavedWidget[]]>(
-    'SELECT id, title, spec, collections, "order", created_at FROM widgets ORDER BY "order" ASC'
-  );
-  return rows ?? [];
+  const res = await fetch("/api/widgets");
+  if (!res.ok) throw new Error("Failed to load widgets");
+  return res.json();
 }
 
 export async function saveWidget(widget: SavedWidget): Promise<void> {
-  await dbQuery(
-    `INSERT INTO widgets (id, title, spec, collections, "order", created_at)
-     VALUES ($id, $title, $spec, $collections, $order, $created_at)
-     ON CONFLICT(id) DO UPDATE SET
-       title = excluded.title,
-       spec = excluded.spec,
-       collections = excluded.collections,
-       "order" = excluded."order",
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
-    {
-      id: widget.id,
-      title: widget.title,
-      spec: widget.spec,
-      collections: widget.collections,
-      order: widget.order,
-      created_at: widget.created_at,
-    }
-  );
+  const res = await fetch("/api/widgets", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(widget),
+  });
+  if (!res.ok) throw new Error("Failed to save widget");
 }
 
 export async function deleteWidget(id: string): Promise<void> {
-  await dbQuery("DELETE FROM widgets WHERE id = $id", { id });
+  const res = await fetch(`/api/widgets?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete widget");
 }
 
 export async function saveWidgetOrder(orderedIds: string[]): Promise<void> {
   if (orderedIds.length === 0) return;
-  const cases = orderedIds.map((_, i) => `WHEN $id${i} THEN ${i}`).join(" ");
-  const inList = orderedIds.map((_, i) => `$id${i}`).join(", ");
-  const vars: Record<string, unknown> = {};
-  orderedIds.forEach((id, i) => { vars[`id${i}`] = id; });
-  await dbQuery(
-    `UPDATE widgets SET "order" = CASE id ${cases} END,
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-     WHERE id IN (${inList})`,
-    vars
-  );
+  const res = await fetch("/api/widgets", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderedIds }),
+  });
+  if (!res.ok) throw new Error("Failed to save widget order");
 }
 
 // Nav Views
