@@ -64,8 +64,9 @@ export async function POST(req: Request) {
   const mode = context?.mode as string | undefined;
 
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY is not set in .env.local" }), {
-      status: 400,
+    console.error("[/api/generate] OPENROUTER_API_KEY is not set");
+    return new Response(JSON.stringify({ error: "AI provider not configured" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
