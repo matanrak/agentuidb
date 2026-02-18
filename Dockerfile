@@ -19,7 +19,13 @@ RUN npm run build -w @agentuidb/core && npm run build -w dashboard
 
 FROM deps AS dev
 WORKDIR /app
-COPY . .
+COPY package.json package-lock.json ./
+COPY core/ core/
+COPY dashboard/ dashboard/
+COPY mcp/ mcp/
+COPY plugin/ plugin/
+COPY docs/ docs/
+COPY SKILL.md ./
 RUN npm run build -w @agentuidb/core
 EXPOSE 3000
 CMD ["npm", "run", "dev", "-w", "dashboard"]
