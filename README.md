@@ -92,7 +92,25 @@ cd dashboard && npm run dev
 
 Opens at [http://localhost:3000](http://localhost:3000).
 
-Data is stored in `~/.config/agentuidb/agentuidb.sqlite` (auto-created on first use). Override with `AGENTUIDB_DATA_DIR`.
+Data is stored in `~/.config/agentuidb/db.sqlite` (auto-created on first use). Override with `DATABASE_PATH`.
+
+### Seed Data
+
+To try AgentUIDB with sample data, copy the included seed database:
+
+```bash
+cp docs/seed.sqlite ~/.config/agentuidb/agentuidb.sqlite
+```
+
+This gives you 140 entries across 7 collections (meals, contacts, expenses, workouts, health metrics, travel, meetings) — ready to query and visualize.
+
+To generate fresh seed data using an LLM (requires an [OpenRouter](https://openrouter.ai/) API key):
+
+```bash
+OPENROUTER_API_KEY=sk-or-... AGENTUIDB_URL=http://127.0.0.1:8000 npm run seed
+```
+
+This sends 140 realistic messages through a chat agent that extracts and stores structured data via the MCP server. All 7 categories run concurrently.
 
 ## MCP Server
 
@@ -119,7 +137,8 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ├── dashboard/          # Web dashboard (Next.js, React)
 │   └── src/            # UI, hooks, API routes
 ├── plugin/             # OpenClaw plugin adapter
-├── scripts/            # CLI tools (watch)
+├── scripts/            # CLI tools (seed, watch)
+├── docs/seed.sqlite    # Pre-built seed database (140 entries)
 └── package.json        # npm workspaces root
 ```
 

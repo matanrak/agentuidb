@@ -60,14 +60,12 @@ function mcpSend(method, params = {}) {
   });
 }
 
-let currentOverrideDate = null;
-
-async function mcpCallTool(name, args) {
+async function mcpCallTool(name, args, overrideDate) {
   // Inject created_at override for insert_document during seeding
-  if (name === "insert_document" && currentOverrideDate && args.data) {
+  if (name === "insert_document" && overrideDate && args.data) {
     const h = 8 + Math.floor(Math.random() * 12); // 8am–8pm
     const m = Math.floor(Math.random() * 60);
-    args.data.created_at = `${currentOverrideDate}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00Z`;
+    args.data.created_at = `${overrideDate}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00Z`;
   }
   const resp = await mcpSend("tools/call", { name, arguments: args });
   if (resp.error) return JSON.stringify({ error: resp.error });
@@ -271,7 +269,7 @@ const green = (s) => `\x1b[32m${s}\x1b[0m`;
 const red = (s) => `\x1b[31m${s}\x1b[0m`;
 const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
 
-async function sendToAgent(userMsg, conversationMessages) {
+async function sendToAgent(userMsg, conversationMessages, overrideDate) {
   conversationMessages.push({ role: "user", content: userMsg });
 
   let toolRounds = 0;
@@ -306,7 +304,7 @@ async function sendToAgent(userMsg, conversationMessages) {
       for (const call of msg.tool_calls) {
         const name = call.function.name;
         const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-        const result = await mcpCallTool(name, args);
+        const result = await mcpCallTool(name, args, overrideDate);
         allToolsCalled.push({ name, success: !JSON.parse(result).error });
         conversationMessages.push({ role: "tool", tool_call_id: call.id, content: result });
       }
@@ -358,30 +356,30 @@ async function main() {
   let done = 0;
   let errors = 0;
 
-  console.log(`\n${cyan("AgentUIDB Seed")} — sending ${total} messages across ${categories.length} categories\n`);
+  console.log(`\n${cyan("AgentUIDB Seed")} — sending ${total} messages across ${categories.length} categories (concurrent)\n`);
 
-  for (const category of categories) {
+  // Run all categories concurrently — each has its own conversation
+  async function runCategory(category) {
     const msgs = messages_by_category[category];
     const dates = generateDates(msgs.length, 45);
     console.log(`${cyan(category)} (${msgs.length} messages, ${dates[0]} → ${dates[dates.length - 1]})`);
 
-    // Fresh conversation per category — re-load schemas so the model knows about
-    // collections created in previous categories without dragging a huge context
     const systemContent = await buildSystemPrompt();
     const conversationMessages = [{ role: "system", content: systemContent }];
+    let catErrors = 0;
 
     for (let i = 0; i < msgs.length; i++) {
       const msg = msgs[i];
-      currentOverrideDate = dates[i];
+      const overrideDate = dates[i];
       done++;
       const short = msg.length > 70 ? msg.slice(0, 70) + "..." : msg;
-      process.stdout.write(`  ${dim(`[${done}/${total}]`)} ${dim(dates[i])} ${short} `);
+      process.stdout.write(`  ${dim(`[${done}/${total}]`)} ${cyan(category.padEnd(15))} ${dim(overrideDate)} ${short} `);
 
-      const result = await sendToAgent(`${msg} on ${dates[i]}`, conversationMessages);
+      const result = await sendToAgent(`${msg} on ${overrideDate}`, conversationMessages, overrideDate);
 
       if (result.error) {
         process.stdout.write(`${red("ERR")} ${dim(result.error)}\n`);
-        errors++;
+        catErrors++;
       } else {
         const hasInsert = result.toolsCalled.some((t) => t.name === "insert_document" && t.success);
         const toolSummary = result.toolsCalled
@@ -389,7 +387,6 @@ async function main() {
           .join(", ");
         process.stdout.write(`${toolSummary || dim("(no tools)")}`);
         if (!hasInsert && result.response) {
-          // Show model response when it didn't insert — helps debug
           const respShort = result.response.length > 80 ? result.response.slice(0, 80) + "..." : result.response;
           process.stdout.write(` ${yellow(respShort)}`);
         }
@@ -397,12 +394,16 @@ async function main() {
       }
 
       // Small delay to avoid rate limits
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 300));
     }
-    console.log();
+    console.log(`  ${cyan(category)} done!`);
+    return catErrors;
   }
 
-  console.log(`${cyan("Done!")} ${done - errors} succeeded, ${errors} errors\n`);
+  const results = await Promise.all(categories.map(runCategory));
+  errors = results.reduce((sum, e) => sum + e, 0);
+
+  console.log(`\n${cyan("Done!")} ${done - errors} succeeded, ${errors} errors\n`);
   mcp.kill();
   process.exit(0);
 }

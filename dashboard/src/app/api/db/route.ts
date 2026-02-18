@@ -16,8 +16,8 @@ export async function POST(req: Request) {
     console.error("[/api/db]", action, err);
     closeDb();
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

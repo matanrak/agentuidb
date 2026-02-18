@@ -22,13 +22,15 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 501 mrak && \
     adduser --system --uid 501 -G mrak mrak && \
-    mkdir -p /home/mrak/.agentuidb && \
-    chown mrak:mrak /home/mrak/.agentuidb
+    mkdir -p /data && \
+    chown mrak:mrak /data
 COPY --from=builder /app/dashboard/public ./public
 COPY --from=builder --chown=mrak:mrak /app/dashboard/.next/standalone ./
 COPY --from=builder --chown=mrak:mrak /app/dashboard/.next/static ./dashboard/.next/static
+COPY --chown=mrak:mrak docs/seed.sqlite /data/db.sqlite
 USER mrak
 EXPOSE 3000
 ENV PORT=3000
+ENV DATABASE_PATH=/data/db.sqlite
 ENV HOSTNAME="0.0.0.0"
 CMD ["node", "dashboard/server.js"]

@@ -2,6 +2,7 @@ import { generateText, streamText, stepCountIs } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import * as handlers from "@agentuidb/core";
+import { DEFAULT_MODEL } from "../constants";
 
 export const maxDuration = 60;
 
@@ -254,8 +255,9 @@ export async function POST(req: Request) {
   const model = process.env.OPENROUTER_MODEL;
 
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY is not set" }), {
-      status: 400,
+    console.error("[/api/chat] OPENROUTER_API_KEY is not set");
+    return new Response(JSON.stringify({ error: "AI provider not configured" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -273,7 +275,7 @@ export async function POST(req: Request) {
       try {
         // Phase 1: Tool loop with generateText (non-streaming)
         const toolResult = await generateText({
-          model: openrouter.chat(model ?? "anthropic/claude-sonnet-4"),
+          model: openrouter.chat(model ?? DEFAULT_MODEL),
           system: systemPrompt,
           messages,
           tools: dataTools,
@@ -350,7 +352,7 @@ export async function POST(req: Request) {
         }
 
         const streamResult = streamText({
-          model: openrouter.chat(model ?? "anthropic/claude-sonnet-4"),
+          model: openrouter.chat(model ?? DEFAULT_MODEL),
           system: systemPrompt,
           messages: finalMessages,
           temperature: 0.5,
@@ -363,11 +365,10 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(sseEvent("done", {})));
         controller.close();
       } catch (err) {
+        console.error("[/api/chat]", err);
         controller.enqueue(
           encoder.encode(
-            sseEvent("error", {
-              message: err instanceof Error ? err.message : String(err),
-            }),
+            sseEvent("error", { message: "Internal server error" }),
           ),
         );
         controller.close();
