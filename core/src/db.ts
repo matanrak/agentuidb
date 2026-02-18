@@ -1,10 +1,10 @@
 import Database from "better-sqlite3";
 import { homedir } from "node:os";
 import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
-function getDataDir(): string {
-  return process.env.AGENTUIDB_DATA_DIR ?? resolve(homedir(), ".config", "agentuidb");
+function getDbPath(): string {
+  return process.env.DATABASE_PATH ?? resolve(homedir(), ".config", "agentuidb", "db.sqlite");
 }
 
 let db: Database.Database | null = null;
@@ -12,9 +12,8 @@ let db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (db) return db;
 
-  const dataDir = getDataDir();
-  mkdirSync(dataDir, { recursive: true });
-  const dataPath = resolve(dataDir, "agentuidb.sqlite");
+  const dataPath = getDbPath();
+  mkdirSync(dirname(dataPath), { recursive: true });
 
   db = new Database(dataPath);
   db.pragma("journal_mode = WAL");
