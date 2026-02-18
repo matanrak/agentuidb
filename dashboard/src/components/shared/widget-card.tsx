@@ -53,6 +53,72 @@ export interface WidgetCardProps {
 }
 
 // ---------------------------------------------------------------------------
+// Add-to-view dropdown (extracted so useViews() only runs when rendered)
+// ---------------------------------------------------------------------------
+
+function AddToViewMenu({
+  widgetId,
+  rawSpec,
+  spec,
+}: {
+  widgetId: string;
+  rawSpec: unknown;
+  spec: Spec;
+}) {
+  const { views, addView, addWidgetToView, removeWidgetFromView } = useViews();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 rounded-md text-muted-foreground hover:text-foreground"
+          title="Add to view"
+        >
+          <FolderPlus className="size-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[160px]">
+        {views.length > 0 && (
+          <>
+            {views.map((view) => {
+              const inView = view.widgetIds.includes(widgetId);
+              return (
+                <DropdownMenuCheckboxItem
+                  key={view.id}
+                  checked={inView}
+                  onCheckedChange={() =>
+                    inView
+                      ? removeWidgetFromView(view.id, widgetId)
+                      : addWidgetToView(view.id, widgetId, rawSpec ?? spec)
+                  }
+                >
+                  {view.name}
+                </DropdownMenuCheckboxItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem
+          onSelect={() => {
+            const name = prompt("View name:");
+            if (name?.trim()) {
+              const viewId = addView(name.trim());
+              addWidgetToView(viewId, widgetId, rawSpec ?? spec);
+            }
+          }}
+        >
+          <Plus className="size-3.5" />
+          New View...
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -106,10 +172,6 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
         setTimeout(() => setConfirmRemove(false), 2000);
       }
     }, [confirmRemove, onRemove]);
-
-    // ---- Add-to-view dropdown ----
-    const { views, addView, addWidgetToView, removeWidgetFromView } =
-      useViews();
 
     // Determine effective loading state (streaming override wins)
     const loading = loadingOverride ?? isLoading;
@@ -169,57 +231,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
 
           {/* Add to view dropdown */}
           {addToView && widgetId && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6 rounded-md text-muted-foreground hover:text-foreground"
-                  title="Add to view"
-                >
-                  <FolderPlus className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[160px]">
-                {views.length > 0 && (
-                  <>
-                    {views.map((view) => {
-                      const inView = view.widgetIds.includes(widgetId);
-                      return (
-                        <DropdownMenuCheckboxItem
-                          key={view.id}
-                          checked={inView}
-                          onCheckedChange={() =>
-                            inView
-                              ? removeWidgetFromView(view.id, widgetId)
-                              : addWidgetToView(
-                                  view.id,
-                                  widgetId,
-                                  rawSpec ?? spec,
-                                )
-                          }
-                        >
-                          {view.name}
-                        </DropdownMenuCheckboxItem>
-                      );
-                    })}
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem
-                  onSelect={() => {
-                    const name = prompt("View name:");
-                    if (name?.trim()) {
-                      const viewId = addView(name.trim());
-                      addWidgetToView(viewId, widgetId, rawSpec ?? spec);
-                    }
-                  }}
-                >
-                  <Plus className="size-3.5" />
-                  New View...
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AddToViewMenu widgetId={widgetId} rawSpec={rawSpec} spec={spec} />
           )}
 
           {/* Show code toggle */}
