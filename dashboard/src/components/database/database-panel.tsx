@@ -30,11 +30,9 @@ import {
   useCollections,
   type FieldDefinition,
 } from "@/hooks/use-collections";
-import { dbQuery } from "@/lib/db-client";
-import { escIdent } from "@agentuidb/core/query";
 import { cn } from "@/lib/utils";
 
-const RECORD_LIMIT = 500;
+const RECORD_LIMIT = 100;
 
 // ─── Field type visual config ────────────────────────────────────────
 
@@ -166,7 +164,6 @@ export function DatabasePanel() {
   const { collections, loading: collectionsLoading } = useCollections();
   const [selected, setSelected] = useState<string | null>(null);
   const [records, setRecords] = useState<Record<string, unknown>[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [search, setSearch] = useState("");
   const [sidebarFilter, setSidebarFilter] = useState("");
@@ -186,21 +183,13 @@ export function DatabasePanel() {
     if (!selected && collections.length > 0) setSelected(collections[0].name);
   }, [collections, selected]);
 
-  // Fetch record counts for all collections
-  useEffect(() => {
-    if (collections.length === 0) return;
-    Promise.all(
-      collections.map(async (col) => {
-        try {
-          const [rows] = await dbQuery<[{ count: number }[]]>(
-            `SELECT COUNT(*) as count FROM \`${escIdent(col.name)}\``,
-          );
-          return [col.name, rows?.[0]?.count ?? 0] as const;
-        } catch {
-          return [col.name, 0] as const;
-        }
-      }),
-    ).then((entries) => setCounts(Object.fromEntries(entries)));
+  // Derive record counts from collection metadata (returned by /api/collections)
+  const counts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const col of collections) {
+      map[col.name] = (col as unknown as { count?: number }).count ?? 0;
+    }
+    return map;
   }, [collections]);
 
   // Fetch records for selected collection
@@ -212,10 +201,17 @@ export function DatabasePanel() {
     setLoadingRecords(true);
     setSearch("");
     setSort(null);
-    dbQuery<[Record<string, unknown>[]]>(
-      `SELECT * FROM \`${escIdent(selected)}\` ORDER BY created_at DESC LIMIT ${RECORD_LIMIT}`,
-    )
-      .then(([rows]) => setRecords(rows ?? []))
+    fetch(`/api/collections/${encodeURIComponent(selected)}/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sort_by: "created_at",
+        sort_order: "desc",
+        limit: RECORD_LIMIT,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((rows) => setRecords(rows ?? []))
       .catch(() => setRecords([]))
       .finally(() => setLoadingRecords(false));
   }, [selected]);
