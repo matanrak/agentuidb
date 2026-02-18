@@ -1,5 +1,3 @@
-import { dbQuery } from "@/lib/db-client";
-
 export interface SavedWidget {
   id: string;
   title: string;
@@ -127,27 +125,16 @@ export async function deleteChatSession(id: string): Promise<void> {
 }
 
 export async function loadChatMessages(sessionId: string): Promise<SavedChatMessage[]> {
-  const [rows] = await dbQuery<[SavedChatMessage[]]>(
-    "SELECT id, session_id, role, content, tool_calls, created_at FROM chat_messages WHERE session_id = $sessionId ORDER BY created_at ASC",
-    { sessionId }
-  );
-  return rows ?? [];
+  const res = await fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`);
+  if (!res.ok) throw new Error("Failed to load chat messages");
+  return res.json();
 }
 
 export async function saveChatMessage(msg: SavedChatMessage): Promise<void> {
-  await dbQuery(
-    `INSERT INTO chat_messages (id, session_id, role, content, tool_calls, created_at)
-     VALUES ($id, $sessionId, $role, $content, $toolCalls, $created_at)
-     ON CONFLICT(id) DO UPDATE SET
-       content = excluded.content,
-       tool_calls = excluded.tool_calls`,
-    {
-      id: msg.id,
-      sessionId: msg.session_id,
-      role: msg.role,
-      content: msg.content,
-      toolCalls: msg.tool_calls,
-      created_at: msg.created_at,
-    }
-  );
+  const res = await fetch("/api/chat/messages", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(msg),
+  });
+  if (!res.ok) throw new Error("Failed to save chat message");
 }
