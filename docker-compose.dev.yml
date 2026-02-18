@@ -1,0 +1,19 @@
+services:
+  dashboard:
+    build:
+      target: dev
+    restart: no
+    develop:
+      watch:
+        - path: ./dashboard/src
+          action: sync
+          target: /app/dashboard/src
+        - path: ./core/src
+          action: sync+restart
+          target: /app/core/src
+        - path: package.json
+          action: rebuild
+        - path: dashboard/package.json
+          action: rebuild
+        - path: core/package.json
+          action: rebuild
