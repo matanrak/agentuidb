@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useDb } from "./use-db";
 import { useViews } from "./use-views";
 import { useWidgetHub } from "./use-widget-hub";
-import { dbQuery } from "@/lib/db-client";
+import { dbQuery, dbSaveLayout } from "@/lib/db-client";
 import { generateDefaultLayout } from "@/lib/widget-sizing";
 import type { WidgetLayoutItem } from "@/lib/storage";
 import type { Layout, ResponsiveLayouts } from "react-grid-layout";
@@ -94,11 +94,7 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
         try {
-          await dbQuery(
-            `INSERT INTO view_layouts (view_id, layouts) VALUES ($viewId, $layouts)
-             ON CONFLICT(view_id) DO UPDATE SET layouts = excluded.layouts, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
-            { viewId, layouts: newLayouts },
-          );
+          await dbSaveLayout(viewId, newLayouts);
         } catch (err) {
           console.error("Failed to save layout to DB:", err);
         }

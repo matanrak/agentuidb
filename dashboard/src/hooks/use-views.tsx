@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { loadNavViews, saveNavView, deleteNavView, type NavView, type WidgetLayoutItem } from "@/lib/storage";
 import { getDefaultWidgetSize } from "@/lib/widget-sizing";
-import { dbQuery } from "@/lib/db-client";
+import { dbDeleteLayout } from "@/lib/db-client";
 
 interface ViewsContextValue {
   views: NavView[];
@@ -43,7 +43,7 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
   const removeView = useCallback((id: string) => {
     setViews((prev) => prev.filter((v) => v.id !== id));
     deleteNavView(id).catch(console.error);
-    dbQuery("DELETE FROM view_layouts WHERE view_id = $viewId", { viewId: id }).catch(() => {});
+    dbDeleteLayout(id).catch(() => {});
     setActiveTab((current) => (current === id ? "widgets" : current));
   }, []);
 
