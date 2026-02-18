@@ -16,6 +16,7 @@ import { WidgetCard } from "@/components/shared/widget-card";
 import { extractCollections } from "@/hooks/use-spec-data";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 import { type ToolCall } from "@/hooks/use-agent-chat";
+import Markdown from "react-markdown";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -146,7 +147,7 @@ export function ChatMessage({
       {/* Text content (non-spec) */}
       {textContent && (
         <div className="bg-secondary/80 border border-border/30 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[80%]">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{textContent}</p>
+          <Markdown className="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:whitespace-pre-wrap">{textContent}</Markdown>
         </div>
       )}
 
