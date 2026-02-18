@@ -60,38 +60,23 @@ export interface NavView {
 }
 
 export async function loadNavViews(): Promise<NavView[]> {
-  const [rows] = await dbQuery<
-    [Array<{ id: string; name: string; widget_ids: string[]; created_at: string }>]
-  >(
-    "SELECT id, name, widget_ids, created_at FROM nav_views ORDER BY created_at ASC"
-  );
-  return (rows ?? []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    widgetIds: r.widget_ids ?? [],
-    created_at: r.created_at,
-  }));
+  const res = await fetch("/api/nav-views");
+  if (!res.ok) throw new Error("Failed to load nav views");
+  return res.json();
 }
 
 export async function saveNavView(view: NavView): Promise<void> {
-  await dbQuery(
-    `INSERT INTO nav_views (id, name, widget_ids, created_at)
-     VALUES ($id, $name, $widgetIds, $created_at)
-     ON CONFLICT(id) DO UPDATE SET
-       name = excluded.name,
-       widget_ids = excluded.widget_ids,
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
-    {
-      id: view.id,
-      name: view.name,
-      widgetIds: view.widgetIds,
-      created_at: view.created_at,
-    }
-  );
+  const res = await fetch("/api/nav-views", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(view),
+  });
+  if (!res.ok) throw new Error("Failed to save nav view");
 }
 
 export async function deleteNavView(id: string): Promise<void> {
-  await dbQuery("DELETE FROM nav_views WHERE id = $id", { id });
+  const res = await fetch(`/api/nav-views?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete nav view");
 }
 
 // Chat Sessions & Messages
