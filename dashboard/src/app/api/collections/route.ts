@@ -59,23 +59,33 @@ export async function GET(req: Request) {
 
     const collections = rows.map(parseMetaRow);
 
-    if (samplesCount > 0) {
-      const withSamples = collections.map((col) => {
+    const enriched = collections.map((col) => {
+      let count = 0;
+      let sampleDocs: Record<string, unknown>[] = [];
+      try {
+        const countRow = db
+          .prepare(
+            `SELECT COUNT(*) as count FROM \`${escIdent(String(col.name))}\``,
+          )
+          .get() as { count: number } | undefined;
+        count = countRow?.count ?? 0;
+      } catch { /* table may not exist */ }
+
+      if (samplesCount > 0) {
         try {
           const docs = db
             .prepare(
               `SELECT * FROM \`${escIdent(String(col.name))}\` ORDER BY created_at DESC LIMIT ?`,
             )
             .all(samplesCount) as Record<string, unknown>[];
-          return { ...col, sampleDocs: parseSampleDocs(docs) };
-        } catch {
-          return { ...col, sampleDocs: [] };
-        }
-      });
-      return NextResponse.json(withSamples);
-    }
+          sampleDocs = parseSampleDocs(docs);
+        } catch { /* ignore */ }
+      }
 
-    return NextResponse.json(collections);
+      return { ...col, count, ...(samplesCount > 0 ? { sampleDocs } : {}) };
+    });
+
+    return NextResponse.json(enriched);
   } catch (err) {
     console.error("[/api/collections] GET", err);
     closeDb();
