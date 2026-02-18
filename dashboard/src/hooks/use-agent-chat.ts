@@ -216,6 +216,21 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
           }
         }
 
+        // Resolve any tool calls still stuck in "calling" state
+        const hasUnresolved = toolCallsAccum.some((c) => c.state === "calling");
+        if (hasUnresolved) {
+          toolCallsAccum = toolCallsAccum.map((c) =>
+            c.state === "calling" ? { ...c, state: "done" as const } : c,
+          );
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = { ...copy[copy.length - 1] };
+            last.toolCalls = [...toolCallsAccum];
+            copy[copy.length - 1] = last;
+            return copy;
+          });
+        }
+
         // Persist completed assistant message
         if (sid) {
           persistMessage({
