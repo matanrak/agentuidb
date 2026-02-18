@@ -29,10 +29,6 @@ interface UseAgentChatOptions {
   onFinish?: () => void;
 }
 
-function generateId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
 export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,13 +85,13 @@ export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOpt
       if (overrideSessionId) sessionIdRef.current = overrideSessionId;
 
       const userMsg: ChatMessage = {
-        id: generateId(),
+        id: crypto.randomUUID(),
         role: "user",
         content: message.content,
       };
 
       const assistantMsg: ChatMessage = {
-        id: generateId(),
+        id: crypto.randomUUID(),
         role: "assistant",
         content: "",
         toolCalls: [],

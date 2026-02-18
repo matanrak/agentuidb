@@ -27,7 +27,7 @@ export function ViewsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addView = useCallback((name: string): string => {
-    const id = Math.random().toString(36).slice(2);
+    const id = crypto.randomUUID();
     const view: NavView = {
       id,
       name,
