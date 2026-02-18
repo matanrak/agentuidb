@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { catalog } from "@/lib/render/catalog";
+import { DEFAULT_MODEL } from "../constants";
 
 export const maxDuration = 60;
 
@@ -324,7 +325,7 @@ Use transforms to create \`daily_totals\` (groupAggregate meals by day, sum calo
   });
 
   const result = streamText({
-    model: openrouter(model ?? "anthropic/claude-sonnet-4"),
+    model: openrouter(model ?? DEFAULT_MODEL),
     system: systemPrompt,
     prompt,
     temperature: isWorkshop ? 0.8 : 0.5,
