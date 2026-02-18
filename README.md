@@ -92,7 +92,7 @@ cd dashboard && npm run dev
 
 Opens at [http://localhost:3000](http://localhost:3000).
 
-Data is stored in `~/.agentuidb/agentuidb.sqlite` (auto-created on first use).
+Data is stored in `~/.config/agentuidb/agentuidb.sqlite` (auto-created on first use). Override with `AGENTUIDB_DATA_DIR`.
 
 ## MCP Server
 
