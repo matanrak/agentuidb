@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { FieldDefinition, CollectionMeta } from "@agentuidb/core/types";
-import { escIdent } from "@agentuidb/core/query";
 import { useDb } from "./use-db";
-import { dbQuery } from "@/lib/db-client";
 
 export type { FieldDefinition, CollectionMeta };
 
@@ -21,26 +19,10 @@ export function useCollections() {
     if (status !== "connected") return;
     setLoading(true);
     try {
-      const [results] = await dbQuery<[CollectionMeta[]]>(
-        "SELECT * FROM _collections_meta ORDER BY name ASC"
-      );
-      const metas = results ?? [];
-
-      // Fetch 2 sample docs per collection for agent context
-      const withSamples = await Promise.all(
-        metas.map(async (col) => {
-          try {
-            const [docs] = await dbQuery<[Record<string, unknown>[]]>(
-              `SELECT * FROM \`${escIdent(col.name)}\` ORDER BY created_at DESC LIMIT 2`
-            );
-            return { ...col, sampleDocs: docs ?? [] };
-          } catch {
-            return { ...col, sampleDocs: [] };
-          }
-        })
-      );
-
-      setCollections(withSamples);
+      const res = await fetch("/api/collections?samples=2");
+      if (!res.ok) throw new Error("Failed to fetch collections");
+      const data = await res.json();
+      setCollections(data);
     } catch (err) {
       console.error("Failed to fetch collections:", err);
     } finally {
