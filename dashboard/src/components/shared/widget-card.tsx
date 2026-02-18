@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, forwardRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, forwardRef } from "react";
 import {
   GripVertical,
   RefreshCw,
@@ -16,6 +16,7 @@ import { type Spec } from "@json-render/react";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -163,13 +164,15 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
 
     // ---- Remove with 2-second confirm ----
     const [confirmRemove, setConfirmRemove] = useState(false);
+    const removeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    useEffect(() => () => clearTimeout(removeTimerRef.current), []);
     const handleRemove = useCallback(() => {
       if (!onRemove) return;
       if (confirmRemove) {
         onRemove();
       } else {
         setConfirmRemove(true);
-        setTimeout(() => setConfirmRemove(false), 2000);
+        removeTimerRef.current = setTimeout(() => setConfirmRemove(false), 2000);
       }
     }, [confirmRemove, onRemove]);
 
@@ -183,7 +186,11 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
       <div
         ref={ref}
         style={style}
-        className={`border border-border/50 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden widget-card-hover transition-shadow ${isDragging ? "opacity-50 shadow-lg shadow-primary/10" : ""} ${className ?? ""}`}
+        className={cn(
+          "border border-border/50 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden widget-card-hover transition-shadow",
+          isDragging && "opacity-50 shadow-lg shadow-primary/10",
+          className,
+        )}
       >
         {/* Header */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
