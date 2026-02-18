@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useDb } from "./use-db";
 import { useViews } from "./use-views";
 import { useWidgetHub } from "./use-widget-hub";
-import { dbQuery, dbSaveLayout } from "@/lib/db-client";
 import { generateDefaultLayout } from "@/lib/widget-sizing";
 import type { WidgetLayoutItem } from "@/lib/storage";
 import type { Layout, ResponsiveLayouts } from "react-grid-layout";
@@ -39,17 +38,15 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
       setIsLoading(true);
 
       try {
-        const [results] = await dbQuery<
-          [Array<{ layouts: ResponsiveLayouts }>]
-        >(
-          "SELECT layouts FROM view_layouts WHERE view_id = $viewId LIMIT 1",
-          { viewId },
-        );
-        if (!cancelled && results?.[0]?.layouts) {
-          setLayouts(results[0].layouts);
-          setIsLoading(false);
-          loadedViewRef.current = viewId;
-          return;
+        const res = await fetch(`/api/view-layouts?viewId=${encodeURIComponent(viewId)}`);
+        if (res.ok) {
+          const layouts = await res.json();
+          if (!cancelled && layouts) {
+            setLayouts(layouts);
+            setIsLoading(false);
+            loadedViewRef.current = viewId;
+            return;
+          }
         }
       } catch (err) {
         console.warn("Failed to load layout from DB:", err);
@@ -94,7 +91,11 @@ export function useViewLayout(viewId: string, widgetIds: string[]) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
         try {
-          await dbSaveLayout(viewId, newLayouts);
+          await fetch("/api/view-layouts", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ viewId, layouts: newLayouts }),
+          });
         } catch (err) {
           console.error("Failed to save layout to DB:", err);
         }

@@ -40,9 +40,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { useCallback } from "react";
-import { buildCollectionQuery } from "@agentuidb/core/query";
 import { catalog } from "./catalog";
-import { dbQuery } from "@/lib/db-client";
 import { useEdit } from "./edit-context";
 
 // =============================================================================
@@ -56,15 +54,13 @@ async function queryDbCollection(
   sort_order?: string | null,
   limit?: number | null,
 ): Promise<Record<string, unknown>[]> {
-  const { query, vars } = buildCollectionQuery({
-    collection,
-    filters,
-    sort_by,
-    sort_order,
-    limit: limit ?? 50,
+  const res = await fetch(`/api/collections/${encodeURIComponent(collection)}/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filters, sort_by, sort_order, limit: limit ?? 50 }),
   });
-  const [results] = await dbQuery<[Record<string, unknown>[]]>(query, vars);
-  return results ?? [];
+  if (!res.ok) throw new Error(`Failed to query collection ${collection}`);
+  return res.json();
 }
 
 // =============================================================================

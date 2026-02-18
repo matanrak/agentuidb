@@ -8,7 +8,6 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { dbMerge, dbDelete } from "@/lib/db-client";
 
 // -----------------------------------------------------------------------------
 // Types
@@ -145,11 +144,21 @@ export function EditProvider({ children, onSaved, onPendingChange }: EditProvide
     try {
       for (const [recordId, fields] of pendingEdits) {
         if (!pendingDeletes.has(recordId)) {
-          await dbMerge(recordId, fields);
+          const [collection, ...idParts] = recordId.split(":");
+          const docId = idParts.join(":");
+          await fetch(`/api/collections/${encodeURIComponent(collection)}/${encodeURIComponent(docId)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(fields),
+          });
         }
       }
       for (const recordId of pendingDeletes) {
-        await dbDelete(recordId);
+        const [delCollection, ...delIdParts] = recordId.split(":");
+        const delDocId = delIdParts.join(":");
+        await fetch(`/api/collections/${encodeURIComponent(delCollection)}/${encodeURIComponent(delDocId)}`, {
+          method: "DELETE",
+        });
       }
       setPendingEdits(new Map());
       setPendingDeletes(new Set());

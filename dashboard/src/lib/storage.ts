@@ -1,5 +1,3 @@
-import { dbQuery } from "@/lib/db-client";
-
 export interface SavedWidget {
   id: string;
   title: string;
@@ -10,49 +8,33 @@ export interface SavedWidget {
 }
 
 export async function loadWidgets(): Promise<SavedWidget[]> {
-  const [rows] = await dbQuery<[SavedWidget[]]>(
-    'SELECT id, title, spec, collections, "order", created_at FROM widgets ORDER BY "order" ASC'
-  );
-  return rows ?? [];
+  const res = await fetch("/api/widgets");
+  if (!res.ok) throw new Error("Failed to load widgets");
+  return res.json();
 }
 
 export async function saveWidget(widget: SavedWidget): Promise<void> {
-  await dbQuery(
-    `INSERT INTO widgets (id, title, spec, collections, "order", created_at)
-     VALUES ($id, $title, $spec, $collections, $order, $created_at)
-     ON CONFLICT(id) DO UPDATE SET
-       title = excluded.title,
-       spec = excluded.spec,
-       collections = excluded.collections,
-       "order" = excluded."order",
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
-    {
-      id: widget.id,
-      title: widget.title,
-      spec: widget.spec,
-      collections: widget.collections,
-      order: widget.order,
-      created_at: widget.created_at,
-    }
-  );
+  const res = await fetch("/api/widgets", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(widget),
+  });
+  if (!res.ok) throw new Error("Failed to save widget");
 }
 
 export async function deleteWidget(id: string): Promise<void> {
-  await dbQuery("DELETE FROM widgets WHERE id = $id", { id });
+  const res = await fetch(`/api/widgets?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete widget");
 }
 
 export async function saveWidgetOrder(orderedIds: string[]): Promise<void> {
   if (orderedIds.length === 0) return;
-  const cases = orderedIds.map((_, i) => `WHEN $id${i} THEN ${i}`).join(" ");
-  const inList = orderedIds.map((_, i) => `$id${i}`).join(", ");
-  const vars: Record<string, unknown> = {};
-  orderedIds.forEach((id, i) => { vars[`id${i}`] = id; });
-  await dbQuery(
-    `UPDATE widgets SET "order" = CASE id ${cases} END,
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-     WHERE id IN (${inList})`,
-    vars
-  );
+  const res = await fetch("/api/widgets", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderedIds }),
+  });
+  if (!res.ok) throw new Error("Failed to save widget order");
 }
 
 // Nav Views
@@ -76,38 +58,23 @@ export interface NavView {
 }
 
 export async function loadNavViews(): Promise<NavView[]> {
-  const [rows] = await dbQuery<
-    [Array<{ id: string; name: string; widget_ids: string[]; created_at: string }>]
-  >(
-    "SELECT id, name, widget_ids, created_at FROM nav_views ORDER BY created_at ASC"
-  );
-  return (rows ?? []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    widgetIds: r.widget_ids ?? [],
-    created_at: r.created_at,
-  }));
+  const res = await fetch("/api/nav-views");
+  if (!res.ok) throw new Error("Failed to load nav views");
+  return res.json();
 }
 
 export async function saveNavView(view: NavView): Promise<void> {
-  await dbQuery(
-    `INSERT INTO nav_views (id, name, widget_ids, created_at)
-     VALUES ($id, $name, $widgetIds, $created_at)
-     ON CONFLICT(id) DO UPDATE SET
-       name = excluded.name,
-       widget_ids = excluded.widget_ids,
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
-    {
-      id: view.id,
-      name: view.name,
-      widgetIds: view.widgetIds,
-      created_at: view.created_at,
-    }
-  );
+  const res = await fetch("/api/nav-views", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(view),
+  });
+  if (!res.ok) throw new Error("Failed to save nav view");
 }
 
 export async function deleteNavView(id: string): Promise<void> {
-  await dbQuery("DELETE FROM nav_views WHERE id = $id", { id });
+  const res = await fetch(`/api/nav-views?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete nav view");
 }
 
 // Chat Sessions & Messages
@@ -129,60 +96,45 @@ export interface SavedChatMessage {
 }
 
 export async function loadChatSessions(): Promise<ChatSession[]> {
-  const [rows] = await dbQuery<[ChatSession[]]>(
-    "SELECT id, title, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC"
-  );
-  return rows ?? [];
+  const res = await fetch("/api/chat/sessions");
+  if (!res.ok) throw new Error("Failed to load chat sessions");
+  return res.json();
 }
 
 export async function createChatSession(session: { id: string; title: string }): Promise<void> {
-  await dbQuery(
-    `INSERT INTO chat_sessions (id, title) VALUES ($id, $title)`,
-    { id: session.id, title: session.title }
-  );
+  const res = await fetch("/api/chat/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(session),
+  });
+  if (!res.ok) throw new Error("Failed to create chat session");
 }
 
 export async function updateChatSession(id: string, data: { title?: string }): Promise<void> {
-  if (data.title !== undefined) {
-    await dbQuery(
-      `UPDATE chat_sessions SET title = $title, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = $id`,
-      { id, title: data.title }
-    );
-  } else {
-    await dbQuery(
-      `UPDATE chat_sessions SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = $id`,
-      { id }
-    );
-  }
+  const res = await fetch("/api/chat/sessions", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...data }),
+  });
+  if (!res.ok) throw new Error("Failed to update chat session");
 }
 
 export async function deleteChatSession(id: string): Promise<void> {
-  await dbQuery("DELETE FROM chat_messages WHERE session_id = $id", { id });
-  await dbQuery("DELETE FROM chat_sessions WHERE id = $id", { id });
+  const res = await fetch(`/api/chat/sessions?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete chat session");
 }
 
 export async function loadChatMessages(sessionId: string): Promise<SavedChatMessage[]> {
-  const [rows] = await dbQuery<[SavedChatMessage[]]>(
-    "SELECT id, session_id, role, content, tool_calls, created_at FROM chat_messages WHERE session_id = $sessionId ORDER BY created_at ASC",
-    { sessionId }
-  );
-  return rows ?? [];
+  const res = await fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`);
+  if (!res.ok) throw new Error("Failed to load chat messages");
+  return res.json();
 }
 
 export async function saveChatMessage(msg: SavedChatMessage): Promise<void> {
-  await dbQuery(
-    `INSERT INTO chat_messages (id, session_id, role, content, tool_calls, created_at)
-     VALUES ($id, $sessionId, $role, $content, $toolCalls, $created_at)
-     ON CONFLICT(id) DO UPDATE SET
-       content = excluded.content,
-       tool_calls = excluded.tool_calls`,
-    {
-      id: msg.id,
-      sessionId: msg.session_id,
-      role: msg.role,
-      content: msg.content,
-      toolCalls: msg.tool_calls,
-      created_at: msg.created_at,
-    }
-  );
+  const res = await fetch("/api/chat/messages", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(msg),
+  });
+  if (!res.ok) throw new Error("Failed to save chat message");
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { dbPing } from "@/lib/db-client";
+
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -22,7 +22,11 @@ export function DbProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const ok = await dbPing();
+      const ok = await fetch("/api/db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ping" }),
+      }).then((r) => r.ok).catch(() => false);
       if (ok) {
         setStatus("connected");
       } else {
