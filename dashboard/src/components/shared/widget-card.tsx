@@ -44,6 +44,7 @@ export interface WidgetCardProps {
   addToView?: boolean;
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
+  showDragHandle?: boolean;
   isDragging?: boolean;
   style?: React.CSSProperties;
   loadingOverride?: boolean;
@@ -67,6 +68,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
       addToView,
       dragAttributes,
       dragListeners,
+      showDragHandle,
       isDragging,
       style,
       loadingOverride,
@@ -113,6 +115,7 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
     const loading = loadingOverride ?? isLoading;
 
     const hasDrag = !!(dragAttributes && dragListeners);
+    const showHandle = showDragHandle || hasDrag;
 
     return (
       <div
@@ -123,11 +126,10 @@ export const WidgetCard = forwardRef<HTMLDivElement, WidgetCardProps>(
         {/* Header */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
           {/* Drag handle */}
-          {hasDrag && (
+          {showHandle && (
             <button
-              className="drag-handle text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-              {...dragAttributes}
-              {...dragListeners}
+              className="drag-handle text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing"
+              {...(hasDrag ? { ...dragAttributes, ...dragListeners } : {})}
             >
               <GripVertical className="size-3.5" />
             </button>

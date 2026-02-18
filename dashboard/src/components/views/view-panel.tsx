@@ -1,54 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { LayoutGrid, X, GripVertical } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { type Spec } from "@json-render/react";
 import { ResponsiveGridLayout, useContainerWidth, verticalCompactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { Button } from "@/components/ui/button";
-import { DashboardRenderer } from "@/lib/render/renderer";
+import { WidgetCard } from "@/components/shared/widget-card";
 import { useViews } from "@/hooks/use-views";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 import { useViewLayout } from "@/hooks/use-view-layout";
-import { useSpecData } from "@/hooks/use-spec-data";
 import type { SavedWidget } from "@/lib/storage";
-
-function ViewWidgetCard({ widget, onRemove }: { widget: SavedWidget; onRemove: () => void }) {
-  const spec = widget.spec as Spec;
-  const { data, setData, dataVersion, isLoading, refresh, handleDataChange } = useSpecData(spec);
-
-  return (
-    <div className="h-full flex flex-col border border-border/50 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden widget-card-hover">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
-        <div className="drag-handle text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing">
-          <GripVertical className="size-3.5" />
-        </div>
-        <span className="text-xs font-medium text-foreground/80 truncate flex-1">{widget.title}</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-6 rounded-md text-muted-foreground hover:text-destructive"
-          onClick={onRemove}
-          title="Remove from view"
-        >
-          <X className="size-3" />
-        </Button>
-      </div>
-      <div className="flex-1 overflow-auto p-3">
-        <DashboardRenderer
-          key={dataVersion}
-          spec={spec}
-          data={data}
-          setData={setData}
-          onDataChange={handleDataChange}
-          onSaved={refresh}
-          loading={isLoading}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function ViewPanel({ viewId }: { viewId: string }) {
   const { views, removeWidgetFromView } = useViews();
@@ -118,9 +80,13 @@ export function ViewPanel({ viewId }: { viewId: string }) {
           >
             {viewWidgets.map((widget) => (
               <div key={widget.id}>
-                <ViewWidgetCard
-                  widget={widget}
+                <WidgetCard
+                  spec={widget.spec as Spec}
+                  title={widget.title}
                   onRemove={() => removeWidgetFromView(viewId, widget.id)}
+                  showDragHandle
+                  className="h-full flex flex-col"
+                  contentClassName="flex-1 overflow-auto p-3"
                 />
               </div>
             ))}
