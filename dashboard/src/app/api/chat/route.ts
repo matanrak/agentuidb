@@ -254,8 +254,9 @@ export async function POST(req: Request) {
   const model = process.env.OPENROUTER_MODEL;
 
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY is not set" }), {
-      status: 400,
+    console.error("[/api/chat] OPENROUTER_API_KEY is not set");
+    return new Response(JSON.stringify({ error: "AI provider not configured" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -363,11 +364,10 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(sseEvent("done", {})));
         controller.close();
       } catch (err) {
+        console.error("[/api/chat]", err);
         controller.enqueue(
           encoder.encode(
-            sseEvent("error", {
-              message: err instanceof Error ? err.message : String(err),
-            }),
+            sseEvent("error", { message: "Internal server error" }),
           ),
         );
         controller.close();
