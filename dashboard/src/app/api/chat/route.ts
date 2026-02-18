@@ -2,7 +2,6 @@ import { generateText, streamText, stepCountIs } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import * as handlers from "@agentuidb/core";
-import { catalog } from "@/lib/render/catalog";
 
 export const maxDuration = 60;
 
@@ -41,6 +40,55 @@ Rules:
 - If the user asks to see or visualize data, respond with a JSON UI spec (see below)
 - If the user just logs data without asking to see anything, respond with a brief confirmation`;
 
+const COMPONENT_PROMPT = `You are a data assistant with UI generation capabilities.
+
+## Available UI Components
+
+Layout:
+- Stack: { direction?: "horizontal"|"vertical", gap?: "sm"|"md"|"lg", justify?, align? } - Flex container [children]
+- Grid: { columns: number, gap?: "sm"|"md"|"lg" } - CSS grid [children]
+- Card: { title?: string, description?: string, centered?: boolean } - Card container [children]
+- Tabs: { defaultValue?: string, tabs: [{value, label}] } - Tabbed content [children]
+- TabContent: { value: string } - Content for a tab [children]
+
+Typography:
+- Heading: { text: string, level?: "h1"|"h2"|"h3"|"h4" }
+- Text: { text?: string, content?: string, variant?: "body"|"caption"|"muted" }
+- Badge: { text: string, variant?: "default"|"secondary"|"destructive"|"outline"|"success"|"warning" }
+- Alert: { variant?: "default"|"destructive", title: string, description?: string }
+
+Data:
+- Table: { dataPath: string, columns: [{key, label}], editable?: boolean, filter?: [{key, operator, value}] } - Sortable data table
+- BarChart: { dataPath: string, xKey: string, yKey: string, aggregate?: "sum"|"count"|"avg", color?: string, height?: number, referenceLine?: number, referenceLineLabel?: string, thresholdColor?: string, colorRules?: [...] }
+- LineChart: { dataPath: string, xKey: string, yKey: string, aggregate?, color?, height?, referenceLine?, referenceLineLabel? }
+- CompositeChart: { dataPath: string, xKey: string, aggregate?, height?, layers: [{type: "bar"|"line"|"area"|"referenceLine", yKey?, y?, color?, label?, colorRules?}] }
+
+Other:
+- Separator, Divider, Progress: { value, max?, label? }, Avatar: { src?, alt?, fallback }, Skeleton, Button: { label, variant?, action, actionParams? }
+
+## UI Spec Format
+
+When generating UI, output a COMPLETE JSON spec object — a single JSON object with "root" and "elements":
+
+\`\`\`json
+{
+  "root": "dashboard",
+  "elements": {
+    "dashboard": { "type": "Stack", "props": { "direction": "vertical", "gap": "lg" }, "children": ["title", "card-1"] },
+    "title": { "type": "Heading", "props": { "text": "My Dashboard", "level": "h2" }, "children": [] },
+    "card-1": { "type": "Card", "props": { "title": "Data" }, "children": ["table-1"] },
+    "table-1": { "type": "Table", "props": { "dataPath": "meals", "editable": true, "columns": [{"key": "name", "label": "Name"}] }, "children": [] }
+  }
+}
+\`\`\`
+
+RULES:
+1. Output the COMPLETE JSON spec as a single JSON object — NOT line-by-line patches
+2. Every element needs: type, props, children (array of child key strings)
+3. ONLY use components listed above
+4. The root value is a key in the elements map
+5. No markdown fences, no explanation — just the raw JSON when responding with a spec`;
+
 function buildSystemPrompt(
   collections?: Array<{
     name: string;
@@ -50,9 +98,7 @@ function buildSystemPrompt(
     sampleDocs?: Array<Record<string, unknown>>;
   }>,
 ): string {
-  const basePrompt = catalog.prompt();
-
-  let systemPrompt = `${basePrompt}
+  let systemPrompt = `${COMPONENT_PROMPT}
 
 ${DATA_TOOLS_PROMPT}`;
 

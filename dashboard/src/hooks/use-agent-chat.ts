@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import {
+  loadChatMessages,
+  saveChatMessage,
+  updateChatSession,
+  type SavedChatMessage,
+} from "@/lib/storage";
 
 export interface ToolCall {
   name: string;
@@ -18,27 +24,70 @@ export interface ChatMessage {
 
 interface UseAgentChatOptions {
   api: string;
+  sessionId: string | null;
   body?: Record<string, unknown>;
   onFinish?: () => void;
 }
 
-export function useAgentChat({ api, body, onFinish }: UseAgentChatOptions) {
+function generateId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+export function useAgentChat({ api, sessionId, body, onFinish }: UseAgentChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+
+  // Load messages from DB when sessionId changes
+  useEffect(() => {
+    if (!sessionId) {
+      setMessages([]);
+      return;
+    }
+    loadChatMessages(sessionId)
+      .then((saved) => {
+        const restored: ChatMessage[] = saved.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          toolCalls: m.tool_calls?.length ? (m.tool_calls as ToolCall[]) : undefined,
+        }));
+        setMessages(restored);
+      })
+      .catch(console.error);
+  }, [sessionId]);
+
+  const persistMessage = useCallback((msg: ChatMessage) => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    const saved: SavedChatMessage = {
+      id: msg.id,
+      session_id: sid,
+      role: msg.role,
+      content: msg.content,
+      tool_calls: msg.toolCalls ?? [],
+      created_at: new Date().toISOString(),
+    };
+    saveChatMessage(saved).catch(console.error);
+  }, []);
 
   const append = useCallback(
-    async (message: { role: "user"; content: string }) => {
+    async (message: { role: "user"; content: string }, overrideSessionId?: string) => {
+      const sid = overrideSessionId ?? sessionIdRef.current;
+      if (overrideSessionId) sessionIdRef.current = overrideSessionId;
+
       const userMsg: ChatMessage = {
-        id: Math.random().toString(36).slice(2),
+        id: generateId(),
         role: "user",
         content: message.content,
       };
 
       const assistantMsg: ChatMessage = {
-        id: Math.random().toString(36).slice(2),
+        id: generateId(),
         role: "assistant",
         content: "",
         toolCalls: [],
@@ -47,6 +96,12 @@ export function useAgentChat({ api, body, onFinish }: UseAgentChatOptions) {
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setIsLoading(true);
       setError(null);
+
+      // Persist user message
+      if (sid) {
+        persistMessage(userMsg);
+        updateChatSession(sid, {}).catch(console.error);
+      }
 
       // Build message history for the API (all previous messages + new user message)
       const historyMessages = [...messages, userMsg].map((m) => ({
@@ -76,6 +131,7 @@ export function useAgentChat({ api, body, onFinish }: UseAgentChatOptions) {
         const decoder = new TextDecoder();
         let buffer = "";
         let textAccum = "";
+        let toolCallsAccum: ToolCall[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -98,30 +154,31 @@ export function useAgentChat({ api, body, onFinish }: UseAgentChatOptions) {
                   args: data.args,
                   state: "calling",
                 };
+                toolCallsAccum = [...toolCallsAccum, tc];
                 setMessages((prev) => {
                   const copy = [...prev];
                   const last = { ...copy[copy.length - 1] };
-                  last.toolCalls = [...(last.toolCalls ?? []), tc];
+                  last.toolCalls = [...toolCallsAccum];
                   copy[copy.length - 1] = last;
                   return copy;
                 });
               } else if (currentEvent === "tool_result") {
+                const idx = toolCallsAccum.findIndex(
+                  (c) => c.name === data.name && c.state === "calling",
+                );
+                if (idx >= 0) {
+                  const isError = data.result?.includes?.('"error"') ?? false;
+                  toolCallsAccum = [...toolCallsAccum];
+                  toolCallsAccum[idx] = {
+                    ...toolCallsAccum[idx],
+                    result: data.result,
+                    state: isError ? "error" : "done",
+                  };
+                }
                 setMessages((prev) => {
                   const copy = [...prev];
                   const last = { ...copy[copy.length - 1] };
-                  const calls = [...(last.toolCalls ?? [])];
-                  const idx = calls.findIndex(
-                    (c) => c.name === data.name && c.state === "calling",
-                  );
-                  if (idx >= 0) {
-                    const isError = data.result?.includes?.('"error"') ?? false;
-                    calls[idx] = {
-                      ...calls[idx],
-                      result: data.result,
-                      state: isError ? "error" : "done",
-                    };
-                  }
-                  last.toolCalls = calls;
+                  last.toolCalls = [...toolCallsAccum];
                   copy[copy.length - 1] = last;
                   return copy;
                 });
@@ -152,6 +209,16 @@ export function useAgentChat({ api, body, onFinish }: UseAgentChatOptions) {
           }
         }
 
+        // Persist completed assistant message
+        if (sid) {
+          persistMessage({
+            id: assistantMsg.id,
+            role: "assistant",
+            content: textAccum,
+            toolCalls: toolCallsAccum.length > 0 ? toolCallsAccum : undefined,
+          });
+        }
+
         onFinish?.();
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
@@ -162,7 +229,7 @@ export function useAgentChat({ api, body, onFinish }: UseAgentChatOptions) {
         abortRef.current = null;
       }
     },
-    [api, body, messages, onFinish],
+    [api, body, messages, onFinish, persistMessage],
   );
 
   const stop = useCallback(() => {

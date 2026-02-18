@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
-import { ArrowUp, Sparkles, Table, BarChart3, LayoutDashboard } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { ArrowUp, Sparkles, Table, BarChart3, LayoutDashboard, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
 import { useCollections, type CollectionMetaWithSamples } from "@/hooks/use-collections";
 import { useAgentChat } from "@/hooks/use-agent-chat";
+import {
+  loadChatSessions,
+  createChatSession,
+  updateChatSession,
+  deleteChatSession,
+  type ChatSession,
+} from "@/lib/storage";
 
 const SUGGESTIONS = [
   { text: "Show me all my collections", icon: LayoutDashboard },
@@ -17,14 +24,37 @@ const SUGGESTIONS = [
   { text: "Show expenses by category as a bar chart", icon: BarChart3 },
 ];
 
+function generateId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export function ChatPanel() {
   const { collections, refresh: refreshCollections } = useCollections();
   const scrollRef = useRef<HTMLDivElement>(null);
   const collectionsRef = useRef<CollectionMetaWithSamples[]>(collections);
   collectionsRef.current = collections;
 
+  // Session management
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [showSessions, setShowSessions] = useState(false);
+
+  // Load sessions on mount
+  useEffect(() => {
+    loadChatSessions()
+      .then((loaded) => {
+        setSessions(loaded);
+        // Resume most recent session if one exists
+        if (loaded.length > 0) {
+          setActiveSessionId(loaded[0].id);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const { messages, input, setInput, append, isLoading, error } = useAgentChat({
     api: "/api/chat",
+    sessionId: activeSessionId,
     body: {
       context: {
         collections: collectionsRef.current.map((c) => ({
@@ -48,14 +78,31 @@ export function ChatPanel() {
     }
   }, [messages]);
 
+  const ensureSession = useCallback(async (firstMessage: string): Promise<string> => {
+    if (activeSessionId) return activeSessionId;
+    const id = generateId();
+    const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "..." : "");
+    await createChatSession({ id, title });
+    const session: ChatSession = {
+      id,
+      title,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setSessions((prev) => [session, ...prev]);
+    setActiveSessionId(id);
+    return id;
+  }, [activeSessionId]);
+
   const handleSend = useCallback(
     async (text?: string) => {
       const msg = (text ?? input).trim();
       if (!msg) return;
       setInput("");
-      append({ role: "user", content: msg });
+      const sid = await ensureSession(msg);
+      append({ role: "user", content: msg }, sid);
     },
-    [input, setInput, append],
+    [input, setInput, append, ensureSession],
   );
 
   const handleKeyDown = useCallback(
@@ -68,10 +115,79 @@ export function ChatPanel() {
     [handleSend],
   );
 
+  const handleNewChat = useCallback(() => {
+    setActiveSessionId(null);
+    setShowSessions(false);
+  }, []);
+
+  const handleSelectSession = useCallback((id: string) => {
+    setActiveSessionId(id);
+    setShowSessions(false);
+  }, []);
+
+  const handleDeleteSession = useCallback(async (id: string) => {
+    await deleteChatSession(id);
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (activeSessionId === id) {
+      setActiveSessionId(null);
+    }
+  }, [activeSessionId]);
+
   const hasCollections = collections.length > 0;
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
 
   return (
     <div className="flex flex-col h-full bg-dot-grid">
+      {/* Session header */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border/30">
+        <button
+          onClick={() => setShowSessions((v) => !v)}
+          className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate max-w-[200px]"
+        >
+          {activeSession?.title ?? "New Chat"}
+        </button>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+          onClick={handleNewChat}
+          title="New chat"
+        >
+          <Plus className="size-3.5" />
+        </Button>
+      </div>
+
+      {/* Session list dropdown */}
+      {showSessions && sessions.length > 0 && (
+        <div className="border-b border-border/30 bg-card/80 backdrop-blur-sm max-h-48 overflow-y-auto">
+          {sessions.map((s) => (
+            <div
+              key={s.id}
+              className={`flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-muted/50 transition-colors ${
+                s.id === activeSessionId ? "bg-muted/30 text-primary" : "text-foreground"
+              }`}
+            >
+              <button
+                className="flex-1 text-left truncate"
+                onClick={() => handleSelectSession(s.id)}
+              >
+                {s.title}
+              </button>
+              <button
+                className="text-muted-foreground/50 hover:text-destructive text-xs shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteSession(s.id);
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Messages */}
       <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="flex flex-col gap-5 max-w-3xl mx-auto px-4 py-6">
