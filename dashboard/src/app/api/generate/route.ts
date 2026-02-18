@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { catalog } from "@/lib/render/catalog";
+import { DEFAULT_MODEL } from "../constants";
 
 export const maxDuration = 60;
 
@@ -64,8 +65,9 @@ export async function POST(req: Request) {
   const mode = context?.mode as string | undefined;
 
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY is not set in .env.local" }), {
-      status: 400,
+    console.error("[/api/generate] OPENROUTER_API_KEY is not set");
+    return new Response(JSON.stringify({ error: "AI provider not configured" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -323,7 +325,7 @@ Use transforms to create \`daily_totals\` (groupAggregate meals by day, sum calo
   });
 
   const result = streamText({
-    model: openrouter(model ?? "anthropic/claude-sonnet-4"),
+    model: openrouter(model ?? DEFAULT_MODEL),
     system: systemPrompt,
     prompt,
     temperature: isWorkshop ? 0.8 : 0.5,

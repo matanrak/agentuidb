@@ -32,7 +32,7 @@ export function WidgetHubProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addWidget = useCallback((title: string, spec: Spec, collections: string[]): string => {
-    const id = Math.random().toString(36).slice(2);
+    const id = crypto.randomUUID();
     const widget: SavedWidget = {
       id,
       title,

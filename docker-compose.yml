@@ -1,0 +1,16 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentuidb
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ${DATABASE_PATH:-./docs/seed.sqlite}:/data/db.sqlite
+    environment:
+      - DATABASE_PATH=/data/db.sqlite
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-sonnet-4.6}
+      - AUTH_SECRET=${AUTH_SECRET:-}

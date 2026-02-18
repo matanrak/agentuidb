@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type Spec } from "@json-render/react";
-import { buildCollectionQuery } from "@agentuidb/core/query";
-import { dbQuery } from "@/lib/db-client";
 import { useDb } from "./use-db";
 import { extractTransforms, extractTransformCollections, applyTransforms } from "@/lib/render/transforms";
 
 async function queryCollection(collection: string, limit = 50): Promise<Record<string, unknown>[]> {
-  const { query, vars } = buildCollectionQuery({ collection, limit });
-  const [results] = await dbQuery<[Record<string, unknown>[]]>(query, vars);
-  return results ?? [];
+  const res = await fetch(`/api/collections/${encodeURIComponent(collection)}/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ limit }),
+  });
+  if (!res.ok) throw new Error(`Failed to query collection ${collection}`);
+  return res.json();
 }
 
 export function extractCollections(spec: Spec): string[] {

@@ -1,23 +1,10 @@
 import Database from "better-sqlite3";
 import { homedir } from "node:os";
-import { mkdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
-interface Settings {
-  dataDir?: string;
-}
-
-function getSettingsDir(): string {
-  return resolve(homedir(), ".agentuidb");
-}
-
-function loadSettings(): Settings {
-  try {
-    const raw = readFileSync(resolve(getSettingsDir(), "settings.json"), "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
+function getDbPath(): string {
+  return process.env.DATABASE_PATH ?? resolve(homedir(), ".config", "agentuidb", "db.sqlite");
 }
 
 let db: Database.Database | null = null;
@@ -25,13 +12,12 @@ let db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (db) return db;
 
-  const settings = loadSettings();
-  const dataDir = settings.dataDir ?? getSettingsDir();
-  mkdirSync(dataDir, { recursive: true });
-  const dataPath = resolve(dataDir, "agentuidb.sqlite");
+  const dataPath = getDbPath();
+  mkdirSync(dirname(dataPath), { recursive: true });
 
   db = new Database(dataPath);
   db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS _collections_meta (
@@ -77,6 +63,26 @@ export function getDb(): Database.Database {
       widget_ids TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
       updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id         TEXT PRIMARY KEY,
+      title      TEXT NOT NULL DEFAULT 'New Chat',
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id         TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+      role       TEXT NOT NULL,
+      content    TEXT NOT NULL DEFAULT '',
+      tool_calls TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     )
   `);
 
