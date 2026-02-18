@@ -18,6 +18,7 @@ export function getDb(): Database.Database {
 
   db = new Database(dataPath);
   db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS _collections_meta (

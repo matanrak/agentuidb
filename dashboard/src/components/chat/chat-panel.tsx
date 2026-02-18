@@ -24,10 +24,6 @@ const SUGGESTIONS = [
   { text: "Show expenses by category as a bar chart", icon: BarChart3 },
 ];
 
-function generateId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
 export function ChatPanel() {
   const { collections, refresh: refreshCollections } = useCollections();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -80,7 +76,7 @@ export function ChatPanel() {
 
   const ensureSession = useCallback(async (firstMessage: string): Promise<string> => {
     if (activeSessionId) return activeSessionId;
-    const id = generateId();
+    const id = crypto.randomUUID();
     const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "..." : "");
     await createChatSession({ id, title });
     const session: ChatSession = {
