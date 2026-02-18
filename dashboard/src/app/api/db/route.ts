@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, closeDb } from "@agentuidb/core/db";
+import { escIdent } from "@agentuidb/core/query";
 
 function processRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   return rows.map((row) => {
@@ -47,26 +48,46 @@ export async function POST(req: Request) {
     switch (action) {
       case "query": {
         const sql = (body.sql as string).trim();
-        const params = serializeParams(body.vars);
-        const stmt = db.prepare(sql);
-
-        if (/^(SELECT|WITH|PRAGMA|EXPLAIN)\b/i.test(sql)) {
-          const rows = stmt.all(params) as Record<string, unknown>[];
-          return NextResponse.json({ result: [processRows(rows)] });
-        } else {
-          stmt.run(params);
-          return NextResponse.json({ result: [[]] });
+        if (!/^(SELECT|WITH)\b/i.test(sql)) {
+          return NextResponse.json(
+            { error: "Only SELECT and WITH queries are allowed" },
+            { status: 400 },
+          );
         }
+        const params = serializeParams(body.vars);
+        const rows = db.prepare(sql).all(params) as Record<string, unknown>[];
+        return NextResponse.json({ result: [processRows(rows)] });
+      }
+      case "save_layout": {
+        const viewId = body.viewId as string;
+        const layouts = body.layouts;
+        if (!viewId || layouts === undefined) {
+          return NextResponse.json({ error: "viewId and layouts required" }, { status: 400 });
+        }
+        db.prepare(
+          `INSERT INTO _view_layouts (view_id, layouts) VALUES (?, ?)
+           ON CONFLICT(view_id) DO UPDATE SET layouts = excluded.layouts, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
+        ).run(viewId, typeof layouts === "object" ? JSON.stringify(layouts) : layouts);
+        return NextResponse.json({ result: true });
+      }
+      case "delete_layout": {
+        const viewId = body.viewId as string;
+        if (!viewId) {
+          return NextResponse.json({ error: "viewId required" }, { status: 400 });
+        }
+        db.prepare("DELETE FROM _view_layouts WHERE view_id = ?").run(viewId);
+        return NextResponse.json({ result: true });
       }
       case "merge": {
         const { collection, id, data } = parseMergeParams(body);
+        const safeName = escIdent(collection);
         const existing = db.prepare(
-          `SELECT data FROM \`${collection}\` WHERE id = ?`,
+          `SELECT data FROM \`${safeName}\` WHERE id = ?`,
         ).get(id) as { data: string } | undefined;
 
         if (existing) {
           const merged = { ...JSON.parse(existing.data), ...data };
-          db.prepare(`UPDATE \`${collection}\` SET data = ? WHERE id = ?`).run(
+          db.prepare(`UPDATE \`${safeName}\` SET data = ? WHERE id = ?`).run(
             JSON.stringify(merged),
             id,
           );
@@ -75,7 +96,8 @@ export async function POST(req: Request) {
       }
       case "delete": {
         const { collection, id } = parseDeleteParams(body);
-        db.prepare(`DELETE FROM \`${collection}\` WHERE id = ?`).run(id);
+        const safeName = escIdent(collection);
+        db.prepare(`DELETE FROM \`${safeName}\` WHERE id = ?`).run(id);
         return NextResponse.json({ result: true });
       }
       case "ping": {

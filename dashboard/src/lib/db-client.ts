@@ -38,6 +38,19 @@ export async function dbDelete(id: string): Promise<void> {
   await rpc({ action: "delete", id });
 }
 
+/** Save a view layout (upsert). */
+export async function dbSaveLayout(
+  viewId: string,
+  layouts: unknown,
+): Promise<void> {
+  await rpc({ action: "save_layout", viewId, layouts });
+}
+
+/** Delete a view layout. */
+export async function dbDeleteLayout(viewId: string): Promise<void> {
+  await rpc({ action: "delete_layout", viewId });
+}
+
 /** Ping the server-side DB connection. */
 export async function dbPing(): Promise<boolean> {
   try {
