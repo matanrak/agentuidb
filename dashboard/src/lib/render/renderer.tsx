@@ -133,8 +133,6 @@ function ElementWrapper({ type, elementKey, element, children }: ElementWrapperP
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [showCode, setShowCode] = useState(false);
 
-  const props = element.props as Record<string, unknown> | undefined;
-  const hasData = !!(props?.dataPath);
   const isRoot = !!(spec && elementKey && elementKey === spec.root);
   const isCard = type === "Card" && !isRoot;
 
@@ -162,21 +160,18 @@ function ElementWrapper({ type, elementKey, element, children }: ElementWrapperP
     return <>{children}</>;
   }
 
-  // Debug colors (temporary): red = data-bound, blue = structural
-  const outlineClass = hasData
-    ? "outline-red-500/40 hover:outline-red-500/90"
-    : "outline-blue-500/30 hover:outline-blue-500/80";
-  const labelClass = hasData ? "bg-red-500/90" : "bg-blue-500/80";
-  const label = hasData
-    ? `${elementKey ?? type} [${props!.dataPath}]`
-    : (elementKey ?? type);
+  // Non-card elements: transparent wrapper, no chrome
+  if (!isCard) {
+    return <>{children}</>;
+  }
 
+  // Card elements: pin + code toggle on hover
   return (
     <div
       ref={wrapperRef}
       data-element-type={type}
       data-element-key={elementKey}
-      className={`relative group/element outline outline-1 rounded-sm ${outlineClass}`}
+      className="relative group/element"
     >
       {showCode ? (
         <pre className="text-xs font-mono bg-background/50 border border-border/30 rounded-lg p-3 overflow-auto max-h-[300px] text-muted-foreground m-1">
@@ -185,31 +180,24 @@ function ElementWrapper({ type, elementKey, element, children }: ElementWrapperP
       ) : (
         children
       )}
-      <div
-        className={`absolute top-0 right-0 text-[9px] font-mono text-white px-1 rounded-bl opacity-0 group-hover/element:opacity-100 transition-opacity pointer-events-none z-10 ${labelClass}`}
-      >
-        {label}
+      <div className="absolute top-1.5 right-1.5 mt-4 flex gap-1 z-10 opacity-0 group-hover/element:opacity-100 transition-opacity">
+        <button
+          className="p-1 rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-foreground hover:border-border backdrop-blur-sm shadow-sm"
+          onClick={(e) => { e.stopPropagation(); setShowCode((v) => !v); }}
+          title={showCode ? "Show rendered UI" : "Show JSON spec"}
+          aria-label={showCode ? "Show rendered UI" : "Show JSON spec"}
+        >
+          {showCode ? <Eye className="size-3" /> : <Code className="size-3" />}
+        </button>
+        <button
+          className="p-1 rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 backdrop-blur-sm shadow-sm"
+          onClick={handlePin}
+          title="Pin as widget"
+          aria-label="Pin as widget"
+        >
+          <Pin className="size-3" />
+        </button>
       </div>
-      {isCard && (
-        <div className="absolute top-1.5 right-1.5 mt-4 flex gap-1 z-10 opacity-0 group-hover/element:opacity-100 transition-opacity">
-          <button
-            className="p-1 rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-foreground hover:border-border backdrop-blur-sm shadow-sm"
-            onClick={(e) => { e.stopPropagation(); setShowCode((v) => !v); }}
-            title={showCode ? "Show rendered UI" : "Show JSON spec"}
-            aria-label={showCode ? "Show rendered UI" : "Show JSON spec"}
-          >
-            {showCode ? <Eye className="size-3" /> : <Code className="size-3" />}
-          </button>
-          <button
-            className="p-1 rounded-md bg-background/80 border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 backdrop-blur-sm shadow-sm"
-            onClick={handlePin}
-            title="Pin as widget"
-            aria-label="Pin as widget"
-          >
-            <Pin className="size-3" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
