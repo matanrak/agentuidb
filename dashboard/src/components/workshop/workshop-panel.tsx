@@ -6,7 +6,7 @@ import { useUIStream, type Spec } from "@json-render/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { WidgetCard } from "@/components/shared/widget-card";
+import { DashboardRenderer } from "@/lib/render/renderer";
 import { extractCollections } from "@/hooks/use-spec-data";
 import { useCollections } from "@/hooks/use-collections";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
@@ -150,7 +150,7 @@ export function WorkshopPanel() {
 
           {activeSpec && (
             <div ref={specContainerRef} className="animate-fade-in-up">
-              <WidgetCard
+              <DashboardRenderer
                 spec={activeSpec}
                 title="Workshop Dashboard"
                 onPin={isStreaming ? undefined : handleAddToHub}

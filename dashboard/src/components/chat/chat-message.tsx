@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { type Spec } from "@json-render/react";
-import { WidgetCard } from "@/components/shared/widget-card";
+import { DashboardRenderer } from "@/lib/render/renderer";
 import { extractCollections } from "@/hooks/use-spec-data";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 import { type ToolCall } from "@/hooks/use-agent-chat";
@@ -70,33 +70,72 @@ function ToolCallIndicator({ tc }: { tc: ToolCall }) {
   );
 }
 
-/** Try to parse content as a JSON UI spec. Returns the spec if valid, null otherwise. */
-function tryParseSpec(content: unknown): Spec | null {
+/** Try to extract a JSON UI spec from content. Returns { spec, text } where text is the non-spec portion. */
+function extractSpecFromContent(content: unknown): { spec: Spec | null; text: string | null } {
   // Content may arrive as an object if the DB auto-parsed a JSON string
   if (content && typeof content === "object") {
     const obj = content as Record<string, unknown>;
     if (obj.root && obj.elements && typeof obj.elements === "object") {
-      return obj as unknown as Spec;
+      return { spec: obj as unknown as Spec, text: null };
     }
-    return null;
+    return { spec: null, text: null };
   }
-  if (!content || typeof content !== "string") return null;
-  // Find JSON in the content — it might be wrapped in markdown fences
-  let jsonStr = content.trim();
-  const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (!content || typeof content !== "string") return { spec: null, text: null };
+
+  const raw = content.trim();
+
+  // Try markdown fences first
+  const fenceMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (fenceMatch) {
-    jsonStr = fenceMatch[1].trim();
+    try {
+      const parsed = JSON.parse(fenceMatch[1].trim());
+      if (parsed.root && parsed.elements && typeof parsed.elements === "object") {
+        const text = raw.replace(fenceMatch[0], "").trim() || null;
+        return { spec: parsed as Spec, text };
+      }
+    } catch {}
   }
-  // Must look like JSON
-  if (!jsonStr.startsWith("{")) return null;
+
+  // Try pure JSON (starts with {)
+  if (raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.root && parsed.elements && typeof parsed.elements === "object") {
+        return { spec: parsed as Spec, text: null };
+      }
+    } catch {}
+  }
+
+  // Find JSON embedded in text — look for {"root": or { "root":
+  const jsonStart = raw.search(/\{\s*"root"\s*:/);
+  if (jsonStart === -1) return { spec: null, text: raw };
+
+  // Find the matching closing brace by counting braces
+  let depth = 0;
+  let jsonEnd = -1;
+  for (let i = jsonStart; i < raw.length; i++) {
+    if (raw[i] === "{") depth++;
+    else if (raw[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        jsonEnd = i + 1;
+        break;
+      }
+    }
+  }
+  if (jsonEnd === -1) return { spec: null, text: raw };
+
   try {
-    const parsed = JSON.parse(jsonStr);
-    // Validate it's a spec: must have root and elements
+    const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd));
     if (parsed.root && parsed.elements && typeof parsed.elements === "object") {
-      return parsed as Spec;
+      const before = raw.slice(0, jsonStart).trim();
+      const after = raw.slice(jsonEnd).trim();
+      const text = [before, after].filter(Boolean).join("\n\n") || null;
+      return { spec: parsed as Spec, text };
     }
   } catch {}
-  return null;
+
+  return { spec: null, text: raw };
 }
 
 export function ChatMessage({
@@ -106,7 +145,10 @@ export function ChatMessage({
   isStreaming,
   widgetTitle,
 }: ChatMessageProps) {
-  const parsedSpec = useMemo(() => (isStreaming ? null : tryParseSpec(content)), [content, isStreaming]);
+  const { spec: parsedSpec, text: surroundingText } = useMemo(
+    () => (isStreaming ? { spec: null, text: content } : extractSpecFromContent(content)),
+    [content, isStreaming],
+  );
   const { startFlyAnimation } = useWidgetHub();
   const specContainerRef = useRef<HTMLDivElement>(null);
 
@@ -130,8 +172,8 @@ export function ChatMessage({
 
   const hasToolCalls = toolCalls && toolCalls.length > 0;
   const hasSpec = parsedSpec && Object.keys(parsedSpec.elements || {}).length > 0;
-  // Show text content only if it's not a spec (if it parsed as a spec, we render the spec instead)
-  const textContent = hasSpec ? null : content;
+  // Show surrounding text (before/after spec) or full content if no spec found
+  const textContent = hasSpec ? surroundingText : content;
 
   return (
     <div className="flex flex-col gap-3 max-w-full">
@@ -147,7 +189,9 @@ export function ChatMessage({
       {/* Text content (non-spec) */}
       {textContent && (
         <div className="bg-secondary/80 border border-border/30 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[80%]">
-          <Markdown className="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:whitespace-pre-wrap">{textContent}</Markdown>
+          <div className="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:whitespace-pre-wrap">
+            <Markdown>{textContent}</Markdown>
+          </div>
         </div>
       )}
 
@@ -162,7 +206,7 @@ export function ChatMessage({
       {/* Rendered spec */}
       {hasSpec && (
         <div ref={specContainerRef}>
-          <WidgetCard
+          <DashboardRenderer
             spec={parsedSpec}
             title={widgetTitle || "Widget"}
             onPin={handleAddToHub}

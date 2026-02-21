@@ -6,7 +6,7 @@ import { type Spec } from "@json-render/react";
 import { ResponsiveGridLayout, useContainerWidth, verticalCompactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { WidgetCard } from "@/components/shared/widget-card";
+import { DashboardRenderer } from "@/lib/render/renderer";
 import { useViews } from "@/hooks/use-views";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 import { useViewLayout } from "@/hooks/use-view-layout";
@@ -80,7 +80,7 @@ export function ViewPanel({ viewId }: { viewId: string }) {
           >
             {viewWidgets.map((widget) => (
               <div key={widget.id}>
-                <WidgetCard
+                <DashboardRenderer
                   spec={widget.spec as Spec}
                   title={widget.title}
                   onRemove={() => removeWidgetFromView(viewId, widget.id)}

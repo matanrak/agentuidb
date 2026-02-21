@@ -1,7 +1,7 @@
 "use client";
 
 import { getByPath } from "@json-render/core";
-import { useData, defineRegistry } from "@json-render/react";
+import { useStateStore, useActions, defineRegistry } from "@json-render/react";
 import {
   Area,
   Bar,
@@ -454,19 +454,22 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     ),
 
     // Interactive
-    Button: ({ props, onAction, loading }) => (
-      <Button
-        variant={props.variant ?? "default"}
-        disabled={loading || (props.disabled ?? false)}
-        onClick={() => onAction?.({ name: props.action, params: props.actionParams ?? undefined })}
-      >
-        {loading ? "..." : props.label}
-      </Button>
-    ),
+    Button: ({ props, loading }) => {
+      const { execute } = useActions();
+      return (
+        <Button
+          variant={props.variant ?? "default"}
+          disabled={loading || (props.disabled ?? false)}
+          onClick={() => execute({ action: props.action, params: props.actionParams ?? undefined })}
+        >
+          {loading ? "..." : props.label}
+        </Button>
+      );
+    },
 
     // Data display
     Table: ({ props }) => {
-      const { data } = useData();
+      const { state: data } = useStateStore();
       const rawItems = resolveData(data, props.dataPath);
       const items = applyFilters(rawItems, props.filter);
       const editable = props.editable ?? false;
@@ -505,7 +508,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
 
     // Charts
     BarChart: ({ props }) => {
-      const { data } = useData();
+      const { state: data } = useStateStore();
       const rawItems = resolveData(data, props.dataPath);
       const { items, valueKey } = processChartData(rawItems, props.xKey, props.yKey, props.aggregate);
       const chartColor = props.color ?? "var(--chart-1)";
@@ -568,7 +571,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     },
 
     LineChart: ({ props }) => {
-      const { data } = useData();
+      const { state: data } = useStateStore();
       const rawItems = resolveData(data, props.dataPath);
       const { items, valueKey } = processChartData(rawItems, props.xKey, props.yKey, props.aggregate);
       const chartColor = props.color ?? "var(--chart-1)";
@@ -612,7 +615,7 @@ export const { registry, handlers, executeAction } = defineRegistry(catalog, {
     },
 
     CompositeChart: ({ props }) => {
-      const { data } = useData();
+      const { state: data } = useStateStore();
       const rawItems = resolveData(data, props.dataPath);
 
       // Collect all yKeys from layers that need data
