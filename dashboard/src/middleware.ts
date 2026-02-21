@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { safeCompare, verifySessionToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/api/auth"];
 
@@ -7,7 +8,7 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const secret = process.env.AUTH_SECRET;
 
   // No secret configured → auth disabled (local dev mode)
@@ -18,11 +19,18 @@ export function middleware(request: NextRequest) {
 
   // Check Authorization header (for programmatic / external API access)
   const authHeader = request.headers.get("authorization");
-  if (authHeader === `Bearer ${secret}`) return NextResponse.next();
+  if (authHeader) {
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (bearer && (await safeCompare(bearer, secret))) {
+      return NextResponse.next();
+    }
+  }
 
-  // Check cookie (for browser sessions)
+  // Check HMAC session cookie (for browser sessions)
   const cookie = request.cookies.get("auth_token");
-  if (cookie?.value === secret) return NextResponse.next();
+  if (cookie?.value && (await verifySessionToken(cookie.value, secret))) {
+    return NextResponse.next();
+  }
 
   // Unauthorized
   if (pathname.startsWith("/api/")) {
