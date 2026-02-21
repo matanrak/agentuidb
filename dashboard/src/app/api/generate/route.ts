@@ -1,5 +1,7 @@
 import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { getDb } from "@agentuidb/core/db";
+import { escIdent } from "@agentuidb/core/query";
 import { catalog } from "@/lib/render/catalog";
 import { DEFAULT_MODEL } from "../constants";
 
@@ -30,24 +32,85 @@ CRITICAL:
 - Every dataPath in a component must match a dataKey from initialActions
 - Load generous amounts of data (limit: 100) to have enough for aggregations`;
 
-function buildCollectionDocs(collections: Array<{
+interface CollectionInfo {
   name: string;
   description: string;
-  count?: number;
+  count: number;
   fields: Array<{ name: string; type: string; required: boolean }>;
-  sampleDocs?: Array<Record<string, unknown>>;
-}>): string {
+  sampleDocs: Record<string, unknown>[];
+}
+
+function loadCollections(sampleCount = 3): CollectionInfo[] {
+  try {
+    const db = getDb();
+    const rows = db
+      .prepare("SELECT * FROM _collections_meta ORDER BY name ASC")
+      .all() as Record<string, unknown>[];
+
+    return rows.map((row) => {
+      const fields =
+        typeof row.fields === "string" ? JSON.parse(row.fields) : row.fields;
+      let count = 0;
+      let sampleDocs: Record<string, unknown>[] = [];
+      const name = String(row.name);
+
+      try {
+        const countRow = db
+          .prepare(`SELECT COUNT(*) as count FROM \`${escIdent(name)}\``)
+          .get() as { count: number } | undefined;
+        count = countRow?.count ?? 0;
+      } catch { /* table may not exist */ }
+
+      if (sampleCount > 0) {
+        try {
+          const docs = db
+            .prepare(
+              `SELECT * FROM \`${escIdent(name)}\` ORDER BY created_at DESC LIMIT ?`,
+            )
+            .all(sampleCount) as Record<string, unknown>[];
+          sampleDocs = docs.map((doc) => {
+            const result: Record<string, unknown> = {};
+            let expandedData: Record<string, unknown> | null = null;
+            for (const [key, val] of Object.entries(doc)) {
+              if (typeof val === "string") {
+                const trimmed = val.trim();
+                if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                  try {
+                    const parsed = JSON.parse(val);
+                    if (key === "data" && typeof parsed === "object" && !Array.isArray(parsed)) {
+                      expandedData = parsed;
+                      continue;
+                    }
+                    result[key] = parsed;
+                    continue;
+                  } catch { /* not JSON */ }
+                }
+              }
+              result[key] = val;
+            }
+            return expandedData ? { ...result, ...expandedData } : result;
+          });
+        } catch { /* ignore */ }
+      }
+
+      return { name, description: String(row.description ?? ""), count, fields, sampleDocs };
+    });
+  } catch {
+    return [];
+  }
+}
+
+function buildCollectionDocs(collections: CollectionInfo[]): string {
   return collections.map((col) => {
     const fields = col.fields
-      .map((f) => `    ${f.name}: ${f.type}${f.required ? " (required)" : ""}`)
+      .map((f: { name: string; type: string; required: boolean }) =>
+        `    ${f.name}: ${f.type}${f.required ? " (required)" : ""}`)
       .join("\n");
 
-    let section = `- ${col.name} (${col.count ?? "?"} docs): ${col.description}\n${fields}`;
+    let section = `- ${col.name} (${col.count} docs): ${col.description}\n${fields}`;
 
-    // Include sample data so the agent understands real field values and shapes
-    if (col.sampleDocs && col.sampleDocs.length > 0) {
+    if (col.sampleDocs.length > 0) {
       const samples = col.sampleDocs.map((doc) => {
-        // Strip record ID but keep created_at so the AI sees the date field
         const { id: _id, updated_at: _ua, ...rest } = doc;
         return `    ${JSON.stringify(rest)}`;
       }).join("\n");
@@ -77,6 +140,20 @@ export async function POST(req: Request) {
 
   // ── Design Guidelines ──
   systemPrompt += `
+
+## #1 RULE — ALL DATA MUST BE LIVE
+
+You are building data-connected widgets. EVERY data value the user sees MUST come from a live database query via \`dataPath\` on a Table or Chart component.
+
+NEVER hardcode data into element props. This means:
+- NO hardcoded counts ("41 documents") in Text or Badge
+- NO hardcoded field lists or column names as text
+- NO hardcoded statistics, averages, or totals
+- NO hardcoded values copied from the collection metadata or sample data
+
+The collection metadata and sample docs you receive are for understanding the SCHEMA — never copy values from them into your output.
+
+If something can't be shown via a Table or Chart with dataPath, DON'T show it. A widget with zero hardcoded data and one live Table is better than a beautiful widget full of stale text.
 
 ## Design Philosophy
 
@@ -125,11 +202,7 @@ Data loading is automatic — any collection referenced via dataPath on a Table 
 - Use color prop to set chart colors. Pick warm, vibrant tones — e.g. "#f97316" (orange), "#10b981" (emerald), "#6366f1" (indigo), "#ec4899" (pink). Avoid dull grays.
 - IMPORTANT: The date/time field on all collections is "created_at" (ISO 8601 datetime). Use xKey="created_at" for any time-based chart. There is no field called "date" or "recorded_at".
 
-**Stat Cards — CRITICAL LIMITATION:**
-- You CANNOT compute real statistics. You do not have access to the full dataset — only 1-2 sample entries.
-- NEVER hardcode computed numbers (totals, averages, counts) in stat card headings. The numbers will be wrong.
-- Instead, SKIP stat cards entirely. Go straight to a chart + table. The chart's visual shape communicates the trend better than a made-up number.
-- The ONLY exception: if you know an exact count from the collection metadata (e.g. "47 docs"), you may use that.
+**Reminder:** Static text is ONLY for titles and labels ("Your Meals", "Daily Calories"). All data values must come from dataPath.
 
 ### 4. Layout Rules
 
@@ -149,6 +222,7 @@ Data loading is automatic — any collection referenced via dataPath on a Table 
 
 ### 6. What NOT to Do
 
+- NEVER hardcode data values in Text, Badge, or Heading props. If the value comes from the database, it must be shown via a Table or Chart with dataPath — not as static text.
 - Don't show every field from the collection. Curate ruthlessly.
 - Don't use Skeleton or Progress unless you're representing real progress data.
 - Don't create complex multi-tab layouts unless the user specifically asks for sections.
@@ -300,24 +374,29 @@ Layer types: "bar", "line", "area", "referenceLine". All data layers share the s
 **Example — "Show days I went over 2000 calories":**
 Use transforms to create \`daily_totals\` (groupAggregate meals by day, sum calories) and \`over_limit_days\` (filter where total > 2000). Show a BarChart on \`daily_totals\` with referenceLine=2000 and thresholdColor="#ef4444". Show a Table on \`over_limit_days\` with columns for date and total calories.`;
 
-  // ── Collection Schemas + Sample Data ──
-  if (context?.collections) {
-    const collectionDocs = buildCollectionDocs(
-      context.collections as Array<{
-        name: string;
-        description: string;
-        count?: number;
-        fields: Array<{ name: string; type: string; required: boolean }>;
-        sampleDocs?: Array<Record<string, unknown>>;
-      }>,
-    );
+  // ── Collection Schemas + Sample Data (loaded server-side) ──
+  const collections = loadCollections(3);
+  if (collections.length > 0) {
+    const collectionDocs = buildCollectionDocs(collections);
+    const validNames = collections.map((c) => `"${c.name}"`).join(", ");
+    systemPrompt += `\n\n## Available Collections
 
-    systemPrompt += `\n\n## Available Collections\n\nData loads automatically when you set dataPath on a Table or Chart component. Set dataPath to the collection name.\nAll collections have a "created_at" field (ISO 8601 datetime) — use this as xKey for time-based charts.\n\n${collectionDocs}`;
+CRITICAL: The ONLY valid dataPath values are:
+1. An exact collection name from this list: ${validNames}
+2. The "output" name of a transform you defined in a _transforms element
+
+Any other dataPath value will fail silently and show no data. Do NOT invent collection names. Do NOT guess. If a collection doesn't exist for what the user wants, tell them.
+
+All collections have a "created_at" field (ISO 8601 datetime) — use this as xKey for time-based charts.
+
+${collectionDocs}`;
+  } else {
+    systemPrompt += `\n\nNo collections exist in the database yet. Tell the user they need to create some data first.`;
   }
 
   systemPrompt += `\n\nToday's date: ${new Date().toISOString().slice(0, 10)}`;
 
-  systemPrompt += `\n\nREMINDER: The date/time field is always "created_at". Tables should have editable=true.`;
+  systemPrompt += `\n\nREMINDER: The date/time field is always "created_at". Tables should have editable=true.\n\nFINAL CHECK before outputting your spec: scan every element. If ANY element has a data value hardcoded in its props (a number, a count, field names, statistics, or anything copied from the collection metadata above), REMOVE it. Replace it with a Table or Chart that uses dataPath, or delete the element entirely. Zero tolerance for hardcoded data.`;
 
   const openrouter = createOpenAI({
     baseURL: "https://openrouter.ai/api/v1",

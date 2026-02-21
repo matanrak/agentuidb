@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { type Spec } from "@json-render/react";
-import { WidgetCard as SharedWidgetCard } from "@/components/shared/widget-card";
+import { DashboardRenderer } from "@/lib/render/renderer";
 import type { SavedWidget } from "@/lib/storage";
 
 interface HubWidgetCardProps {
@@ -19,7 +19,7 @@ interface HubWidgetCardProps {
 export const WidgetCard = forwardRef<HTMLDivElement, HubWidgetCardProps>(
   function WidgetCard({ widget, onRemove, dragAttributes, dragListeners, style, isDragging }, ref) {
     return (
-      <SharedWidgetCard
+      <DashboardRenderer
         ref={ref}
         spec={widget.spec as Spec}
         title={widget.title}
