@@ -27,8 +27,8 @@ import { useViews } from "@/hooks/use-views";
 
 const BUILT_IN_TABS = [
   { id: "chat", label: "Chat", icon: MessageSquare },
-  { id: "workshop", label: "Workshop", icon: Wand2 },
-  { id: "widgets", label: "Widgets", icon: LayoutGrid },
+  { id: "auto-create", label: "Auto Create", icon: Wand2 },
+  { id: "widgets", label: "All Widgets", icon: LayoutGrid },
   { id: "database", label: "Database", icon: Table2 },
 ] as const;
 
