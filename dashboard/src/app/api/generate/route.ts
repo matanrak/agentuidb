@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 const BASE_SYSTEM_PROMPT = catalog.prompt();
 
-const WORKSHOP_SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}
+const AUTO_CREATE_SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}
 
 You are a senior data analyst. The user wants you to create a rich, insightful dashboard from their data.
 
@@ -135,8 +135,8 @@ export async function POST(req: Request) {
     });
   }
 
-  const isWorkshop = mode === "workshop";
-  let systemPrompt = isWorkshop ? WORKSHOP_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT;
+  const isAutoCreate = mode === "auto-create";
+  let systemPrompt = isAutoCreate ? AUTO_CREATE_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT;
 
   // ── Design Guidelines ──
   systemPrompt += `
@@ -407,7 +407,7 @@ ${collectionDocs}`;
     model: openrouter(model ?? DEFAULT_MODEL),
     system: systemPrompt,
     prompt,
-    temperature: isWorkshop ? 0.8 : 0.5,
+    temperature: isAutoCreate ? 0.8 : 0.5,
   });
 
   return result.toTextStreamResponse();

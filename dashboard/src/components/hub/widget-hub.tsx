@@ -62,7 +62,7 @@ export function WidgetHub({ title }: { title?: string }) {
         <div className="text-center">
           <p className="text-base font-medium text-foreground/70">Widget Hub</p>
           <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-52 leading-relaxed">
-            Pin widgets from chat or the workshop to build your dashboard
+            Pin widgets from chat or auto create to build your dashboard
           </p>
         </div>
       </div>

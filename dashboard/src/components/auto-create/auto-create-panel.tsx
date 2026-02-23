@@ -11,7 +11,7 @@ import { extractCollections } from "@/hooks/use-spec-data";
 import { useCollections } from "@/hooks/use-collections";
 import { useWidgetHub } from "@/hooks/use-widget-hub";
 
-const WORKSHOP_PROMPTS = [
+const AUTO_CREATE_PROMPTS = [
   "Create a comprehensive executive dashboard that shows the most interesting patterns across all my data. Include key metrics, trends over time, and category breakdowns.",
   "Build a dashboard focused on recent activity and trends. Show what's changed recently, highlight outliers, and surface any interesting correlations between collections.",
   "Design an analytical dashboard that tells a story about my data. Start with the big picture, then drill into the most interesting details. Use creative chart combinations.",
@@ -19,7 +19,7 @@ const WORKSHOP_PROMPTS = [
   "Build a visual summary of everything in my data. Focus on making it beautiful and insightful — use stat cards for key numbers, charts for trends, and tables for recent items.",
 ];
 
-export function WorkshopPanel() {
+export function AutoCreatePanel() {
   const { collections } = useCollections();
   const { startFlyAnimation } = useWidgetHub();
   const [generatedSpec, setGeneratedSpec] = useState<Spec | null>(null);
@@ -28,7 +28,7 @@ export function WorkshopPanel() {
 
   const { spec, isStreaming, error, send, clear } = useUIStream({
     api: "/api/generate",
-    onError: (err) => console.error("Workshop generation error:", err),
+    onError: (err) => console.error("Auto Create generation error:", err),
   });
 
   const prevStreamingRef = useRef(isStreaming);
@@ -42,8 +42,8 @@ export function WorkshopPanel() {
 
   const generate = useCallback(async () => {
     setGeneratedSpec(null);
-    const prompt = WORKSHOP_PROMPTS[Math.floor(Math.random() * WORKSHOP_PROMPTS.length)]!;
-    const context: Record<string, unknown> = { mode: "workshop" };
+    const prompt = AUTO_CREATE_PROMPTS[Math.floor(Math.random() * AUTO_CREATE_PROMPTS.length)]!;
+    const context: Record<string, unknown> = { mode: "auto-create" };
     if (collections.length > 0) {
       context.collections = collections.map((c) => ({
         name: c.name,
@@ -65,7 +65,7 @@ export function WorkshopPanel() {
     if (!generatedSpec || !specContainerRef.current) return;
     const rect = specContainerRef.current.getBoundingClientRect();
     const specCollections = extractCollections(generatedSpec);
-    startFlyAnimation(rect, { title: "Workshop Dashboard", spec: generatedSpec, collections: specCollections });
+    startFlyAnimation(rect, { title: "Auto Create Dashboard", spec: generatedSpec, collections: specCollections });
   }, [generatedSpec, startFlyAnimation]);
 
   const hasCollections = collections.length > 0;
@@ -152,7 +152,7 @@ export function WorkshopPanel() {
             <div ref={specContainerRef} className="animate-fade-in-up">
               <DashboardRenderer
                 spec={activeSpec}
-                title="Workshop Dashboard"
+                title="Auto Create Dashboard"
                 onPin={isStreaming ? undefined : handleAddToHub}
                 loadingOverride={isStreaming}
               />
